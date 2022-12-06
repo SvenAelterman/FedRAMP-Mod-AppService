@@ -12,6 +12,7 @@ param location string
 @allowed([
   'kv'
   'st'
+  'cr'
 ])
 param resourceType string
 param environment string
@@ -29,6 +30,11 @@ var Defs = {
   st: {
     lowerCase: true
     maxLength: 23
+    alwaysRemoveHyphens: true
+  }
+  cr: {
+    lowerCase: false
+    maxLength: 50
     alwaysRemoveHyphens: true
   }
 }

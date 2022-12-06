@@ -16,24 +16,37 @@ Param(
 	[string]$WorkloadName,
 	#
 	[int]$Sequence = 1,
-	[string]$NamingConvention = "{rtype}-{wloadname}-{env}-{loc}-{seq}"
+	[string]$NamingConvention = "{rtype}-{wloadname}-{env}-{loc}-{seq}",
+	[bool]$DeployBastion = $false,
+	[string]$PostgreSQLVersion,
+	[securestring]$DbAdminPassword,
+	[string]$DbAadGroupObjectId,
+	[string]$DbAadGroupName,
+	[string]$TargetSubscription
 )
 
 $TemplateParameters = @{
 	# REQUIRED
-	location         = $Location
-	environment      = $Environment
-	workloadName     = $WorkloadName
+	location           = $Location
+	environment        = $Environment
+	workloadName       = $WorkloadName
+	postgresqlVersion  = $PostgreSQLVersion
+	dbAdminPassword    = $DbAdminPassword
+	dbAadGroupObjectId = $DbAadGroupObjectId
+	dbAadGroupName     = $DbAadGroupName
 
 	# OPTIONAL
-	sequence         = $Sequence
-	namingConvention = $NamingConvention
-	tags             = @{
+	deployBastion      = $DeployBastion
+	sequence           = $Sequence
+	namingConvention   = $NamingConvention
+	tags               = @{
 		'date-created' = (Get-Date -Format 'yyyy-MM-dd')
 		purpose        = $Environment
 		lifetime       = 'short'
 	}
 }
+
+Select-AzSubscription $TargetSubscription
 
 $DeploymentResult = New-AzDeployment -Location $Location -Name "$WorkloadName-$Environment-$(Get-Date -Format 'yyyyMMddThhmmssZ' -AsUTC)" `
 	-TemplateFile ".\main.bicep" -TemplateParameterObject $TemplateParameters
@@ -41,4 +54,5 @@ $DeploymentResult = New-AzDeployment -Location $Location -Name "$WorkloadName-$E
 $DeploymentResult
 
 if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
+	Write-Host "🔥 Deployment successful!"
 }

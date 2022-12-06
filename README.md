@@ -1,6 +1,6 @@
-# BicepTemplate
+# Deploying Azure Container Instances to comply with FedRAMP Moderate
 
-Template repo for creating a new Bicep deployment.
+These templates deploy Azure Container Instances, supported by Azure Database for PostgreSQL, Container Registry, and Key Vault, in a manner compliant with the Azure built-in FedRAMP Moderate policy.
 
 ## Usage
 
@@ -15,10 +15,6 @@ This PowerShell script will deploy your main.bicep template.
 ### common-modules
 
 The modules in this folder are modules that contain re-usable outputs.
-
-### modules
-
-You should create your own modules folder and reference those modules from main.bicep or other modules.
 
 ## Parameters
 

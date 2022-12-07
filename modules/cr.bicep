@@ -2,7 +2,6 @@ param location string
 param crName string
 @description('The Key Vault key to use for encryption, without version')
 param keyUri string
-//param uamiPrincipalId string
 param uamiApplicationId string
 param uamiId string
 param namingStructure string

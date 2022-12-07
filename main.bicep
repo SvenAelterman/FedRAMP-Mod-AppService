@@ -86,12 +86,16 @@ var subnets = {
     serviceEndpoints: []
     delegation: ''
   }
+}
+var AzureBastionSubnet = deployBastion ? {
   AzureBastionSubnet: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet3}', '254')}/${subnetCidr}'
     serviceEndpoints: []
     delegation: ''
   }
-}
+} : {}
+
+var subnetsToDeploy = union(subnets, AzureBastionSubnet)
 
 module networkModule 'modules/network.bicep' = {
   name: replace(deploymentNameStructure, '{rtype}', 'network')
@@ -99,7 +103,7 @@ module networkModule 'modules/network.bicep' = {
   params: {
     location: location
     deploymentNameStructure: deploymentNameStructure
-    subnetDefs: subnets
+    subnetDefs: subnetsToDeploy
     vNetAddressPrefix: '${replace(vNetAddressSpace, '{octet3}', '0')}/${vNetCidr}'
     vNetName: replace(namingStructure, '{rtype}', 'vnet')
     tags: tags
@@ -109,6 +113,7 @@ module networkModule 'modules/network.bicep' = {
 // TODO: Create NSGs
 // * App GW
 // * Standard (no rules)
+// * Postgres (outbound to Azure AD)
 
 var postgresqlServerName = replace(namingStructure, '{rtype}', 'pg')
 var postgresqlDnsZoneName = '${postgresqlServerName}.private.postgres.database.azure.com'
@@ -231,7 +236,6 @@ module crModule 'modules/cr.bicep' = {
     privateDnsZoneId: privateDnsZonesModule[1].outputs.zoneId
     privateEndpointResourceGroupName: networkingRg.name
     uamiId: uamiModule.outputs.id
-    //uamiPrincipalId: uamiModule.outputs.principalId
     uamiApplicationId: uamiModule.outputs.applicationId
     privateEndpointSubnetId: networkModule.outputs.createdSubnets.privateEndpoints.id
   }
@@ -253,9 +257,9 @@ module postgresqlModule 'modules/postgresql.bicep' = {
     subnetId: networkModule.outputs.createdSubnets.postgresql.id
     uamiId: uamiModule.outputs.id
 
-    // TODO: Enable AAD auth when deployment is successful
-    // aadAdminGroupName: dbAadGroupName
-    // aadAdminGroupObjectId: dbAadGroupObjectId
+    // Enable AAD authentication to DB server
+    aadAdminGroupName: dbAadGroupName
+    aadAdminGroupObjectId: dbAadGroupObjectId
 
     customerEncryptionKeyUri: keyVaultKeysModule[0].outputs.keyUri
     tags: tags
@@ -287,3 +291,4 @@ output namingStructure string = namingStructure
 // * RBAC
 // * CONTAINER IMAGE DEPLOYMENT
 // * AUDITING
+// * CUSTOM DOMAIN NAMES

@@ -1,6 +1,6 @@
 # PowerShell script to deploy the main.bicep template with parameter values
 
-#Requires -Modules "Az"
+#Requires -Modules "Az", "Microsoft.Graph.Applications"
 #Requires -PSEdition Core
 
 # Use these parameters to customize the deployment instead of modifying the default parameter values
@@ -47,6 +47,20 @@ $TemplateParameters = @{
 }
 
 Select-AzSubscription $TargetSubscription
+
+# The App ID of the PostgreSQL Flexible Server app to enable AAD auth (fixed across all tenants)
+$AzurePostgreSQLFlexSrvAppId = '5657e26c-cc92-45d9-bc47-9da6cfdb4ed9'
+Connect-MgGraph -Scopes "Application.ReadWrite.All"
+
+$PostgresSP = Get-MgServicePrincipal -Filter "AppId eq '$AzurePostgreSQLFlexSrvAppId'"
+
+if (! $PostgresSP) {
+	Write-Warning "Registering Azure Database for PostgreSQL Flexible Server AAD Authentication app"
+	New-MgServicePrincipal -AppId $AzurePostgreSQLFlexSrvAppId
+}
+else {
+	Write-Verbose "$($PostgresSP.DisplayName) is already registered."
+}
 
 $DeploymentResult = New-AzDeployment -Location $Location -Name "$WorkloadName-$Environment-$(Get-Date -Format 'yyyyMMddThhmmssZ' -AsUTC)" `
 	-TemplateFile ".\main.bicep" -TemplateParameterObject $TemplateParameters

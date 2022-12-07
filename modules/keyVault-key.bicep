@@ -20,6 +20,9 @@ resource newKey 'Microsoft.KeyVault/vaults/keys@2022-07-01' = {
   name: keyName
   parent: keyVault
   properties: {
+    attributes: {
+      exp: dateTimeToEpoch(expiryDateTime)
+    }
     kty: algorithm
     keySize: keySize
     rotationPolicy: {
@@ -50,7 +53,6 @@ resource newKey 'Microsoft.KeyVault/vaults/keys@2022-07-01' = {
         }
       ]
     }
-    exp: dateTimeToEpoch(expiryDateTime)
   }
 }
 

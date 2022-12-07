@@ -252,7 +252,7 @@ module postgresqlModule 'modules/postgresql.bicep' = {
     location: location
     dbAdminPassword: dbAdminPassword
     postgresqlVersion: postgresqlVersion
-    privateDnsZoneId: privateDnsZonesModule[0].outputs.zoneId //filter(privateDnsZonesModule, z => z.outputs.zoneName == postgresqlDnsZoneName)[0].outputs.zoneId
+    privateDnsZoneId: privateDnsZonesModule[0].outputs.zoneId
     serverName: postgresqlServerName
     subnetId: networkModule.outputs.createdSubnets.postgresql.id
     uamiId: uamiModule.outputs.id
@@ -283,12 +283,23 @@ module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
   }
 }
 
-// TODO: Deploy APP GW
+// Deploy APP GW with an empty backend pool
+module appGwModule 'modules/appGw.bicep' = {
+  name: replace(deploymentNameStructure, '{rtype}', 'appgw')
+  scope: networkingRg
+  params: {
+    location: location
+    namingStructure: namingStructure
+    subnetId: networkModule.outputs.createdSubnets.appgw.id
+    uamiId: uamiModule.outputs.id
+  }
+}
 
 output namingStructure string = namingStructure
 
 // NOT COVERED HERE
-// * RBAC
+// * SOME RBAC
 // * CONTAINER IMAGE DEPLOYMENT
 // * AUDITING
 // * CUSTOM DOMAIN NAMES
+// * TLS FOR APP GW

@@ -9,6 +9,14 @@ resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-previ
   tags: tags
 }
 
+resource uamiLock 'Microsoft.Authorization/locks@2020-05-01' = {
+  name: '${identityName}-lock'
+  scope: uami
+  properties: {
+    level: 'CanNotDelete'
+  }
+}
+
 // This is the ID that the PostgreSQL needs
 output principalId string = uami.properties.principalId
 output id string = uami.id

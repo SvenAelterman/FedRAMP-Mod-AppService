@@ -2,6 +2,7 @@ param location string
 param vnetName string
 param subnetDefs object
 param vnetAddressPrefix string
+param networkSecurityGroups array
 
 param tags object = {}
 
@@ -33,6 +34,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-05-01' = {
             }
           }
         ]
+        networkSecurityGroup: {
+          id: networkSecurityGroups[i]
+        }
       }
     }]
   }

@@ -1,0 +1,102 @@
+[
+	{
+		"name": "Allow_HTTPS",
+		"properties": {
+			"direction": "Inbound",
+			"priority": 200,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "Internet",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "*",
+			"destinationPortRange": "443"
+		}
+	},
+	{
+		"name": "Allow_GatewayManager",
+		"properties": {
+			"direction": "Inbound",
+			"priority": 210,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "GatewayManager",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "*",
+			"destinationPortRange": "443"
+		}
+	},
+	{
+		"name": "Allow_BastionHost_In",
+		"properties": {
+			"direction": "Inbound",
+			"priority": 220,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "VirtualNetwork",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "VirtualNetwork",
+			"destinationPortRanges": [
+				"8080",
+				"5701"
+			]
+		}
+	},
+	{
+		"name": "Allow_Target",
+		"properties": {
+			"direction": "Outbound",
+			"priority": 200,
+			"protocol": "*",
+			"access": "Allow",
+			"sourceAddressPrefix": "*",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "VirtualNetwork",
+			"destinationPortRanges": [
+				"22",
+				"3389"
+			]
+		}
+	},
+	{
+		"name": "Allow_AzureCloud",
+		"properties": {
+			"direction": "Outbound",
+			"priority": 210,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "*",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "AzureCloud",
+			"destinationPortRange": "443"
+		}
+	},
+	{
+		"name": "Allow_BastionHost_Out",
+		"properties": {
+			"direction": "Outbound",
+			"priority": 220,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "VirtualNetwork",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "VirtualNetwork",
+			"destinationPortRanges": [
+				"8080",
+				"5701"
+			]
+		}
+	},
+	{
+		"name": "Allow_SessionInformation",
+		"properties": {
+			"direction": "Outbound",
+			"priority": 230,
+			"protocol": "*",
+			"access": "Allow",
+			"sourceAddressPrefix": "*",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "Internet",
+			"destinationPortRange": "80"
+		}
+	}
+]

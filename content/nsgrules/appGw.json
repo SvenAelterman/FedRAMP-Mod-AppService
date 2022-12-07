@@ -1,0 +1,15 @@
+[
+	{
+		"name": "Allow_GatewayManager",
+		"properties": {
+			"direction": "Inbound",
+			"priority": 200,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "GatewayManager",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "*",
+			"destinationPortRange": "65200-65535"
+		}
+	}
+]

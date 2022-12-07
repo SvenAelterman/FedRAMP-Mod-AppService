@@ -1,0 +1,18 @@
+[
+	{
+		"name": "Allow_AzureAD_ServiceTag",
+		"properties": {
+			"direction": "Outbound",
+			"priority": 210,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "VirtualNetwork",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "AzureActiveDirectory",
+			"destinationPortRanges": [
+				"80",
+				"443"
+			]
+		}
+	}
+]

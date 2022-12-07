@@ -213,7 +213,7 @@ module uamiKeyVaultRbacModule 'modules/keyVault-rbac.bicep' = {
   }
 }
 
-// Deploy CR
+// Deploy Container Registry
 module crShortNameModule 'common-modules/shortname.bicep' = {
   name: replace(deploymentNameStructure, '{rtype}', 'cr-shortname')
   scope: containersRg
@@ -227,75 +227,75 @@ module crShortNameModule 'common-modules/shortname.bicep' = {
   }
 }
 
-// module crModule 'modules/cr.bicep' = {
-//   name: replace(deploymentNameStructure, '{rtype}', 'cr')
-//   scope: containersRg
-//   params: {
-//     location: location
-//     crName: crShortNameModule.outputs.shortName
-//     keyUri: keyVaultKeysModule[1].outputs.keyUriNoVersion
-//     namingStructure: namingStructure
-//     privateDnsZoneId: privateDnsZonesModule[1].outputs.zoneId
-//     privateEndpointResourceGroupName: networkingRg.name
-//     uamiId: uamiModule.outputs.id
-//     uamiApplicationId: uamiModule.outputs.applicationId
-//     privateEndpointSubnetId: networkModule.outputs.createdSubnets.privateEndpoints.id
-//   }
-//   dependsOn: [
-//     uamiKeyVaultRbacModule
-//   ]
-// }
+module crModule 'modules/cr.bicep' = {
+  name: replace(deploymentNameStructure, '{rtype}', 'cr')
+  scope: containersRg
+  params: {
+    location: location
+    crName: crShortNameModule.outputs.shortName
+    keyUri: keyVaultKeysModule[1].outputs.keyUriNoVersion
+    namingStructure: namingStructure
+    privateDnsZoneId: privateDnsZonesModule[1].outputs.zoneId
+    privateEndpointResourceGroupName: networkingRg.name
+    uamiId: uamiModule.outputs.id
+    uamiApplicationId: uamiModule.outputs.applicationId
+    privateEndpointSubnetId: networkModule.outputs.createdSubnets.privateEndpoints.id
+  }
+  dependsOn: [
+    uamiKeyVaultRbacModule
+  ]
+}
 
 // Deploy PG flexible server
-// module postgresqlModule 'modules/postgresql.bicep' = {
-//   name: replace(deploymentNameStructure, '{rtype}', 'postgresql')
-//   scope: databaseRg
-//   params: {
-//     location: location
-//     dbAdminPassword: dbAdminPassword
-//     postgresqlVersion: postgresqlVersion
-//     privateDnsZoneId: privateDnsZonesModule[0].outputs.zoneId
-//     serverName: postgresqlServerName
-//     subnetId: networkModule.outputs.createdSubnets.postgresql.id
-//     uamiId: uamiModule.outputs.id
+module postgresqlModule 'modules/postgresql.bicep' = {
+  name: replace(deploymentNameStructure, '{rtype}', 'postgresql')
+  scope: databaseRg
+  params: {
+    location: location
+    dbAdminPassword: dbAdminPassword
+    postgresqlVersion: postgresqlVersion
+    privateDnsZoneId: privateDnsZonesModule[0].outputs.zoneId
+    serverName: postgresqlServerName
+    subnetId: networkModule.outputs.createdSubnets.postgresql.id
+    uamiId: uamiModule.outputs.id
 
-//     // Enable AAD authentication to DB server
-//     aadAdminGroupName: dbAadGroupName
-//     aadAdminGroupObjectId: dbAadGroupObjectId
+    // Enable AAD authentication to DB server
+    aadAdminGroupName: dbAadGroupName
+    aadAdminGroupObjectId: dbAadGroupObjectId
 
-//     customerEncryptionKeyUri: keyVaultKeysModule[0].outputs.keyUri
-//     tags: tags
-//   }
-//   dependsOn: [
-//     uamiKeyVaultRbacModule
-//   ]
-// }
+    customerEncryptionKeyUri: keyVaultKeysModule[0].outputs.keyUri
+    tags: tags
+  }
+  dependsOn: [
+    uamiKeyVaultRbacModule
+  ]
+}
 
 // Deploy ACI?
 
 // Deploy Bastion
-// module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
-//   name: replace(deploymentNameStructure, '{rtype}', 'bas')
-//   scope: networkingRg
-//   params: {
-//     location: location
-//     bastionSubnetId: networkModule.outputs.createdSubnets.AzureBastionSubnet.id
-//     namingStructure: namingStructure
-//     tags: tags
-//   }
-// }
+module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
+  name: replace(deploymentNameStructure, '{rtype}', 'bas')
+  scope: networkingRg
+  params: {
+    location: location
+    bastionSubnetId: networkModule.outputs.createdSubnets.AzureBastionSubnet.id
+    namingStructure: namingStructure
+    tags: tags
+  }
+}
 
 // Deploy APP GW with an empty backend pool
-// module appGwModule 'modules/appGw.bicep' = {
-//   name: replace(deploymentNameStructure, '{rtype}', 'appgw')
-//   scope: networkingRg
-//   params: {
-//     location: location
-//     namingStructure: namingStructure
-//     subnetId: networkModule.outputs.createdSubnets.appgw.id
-//     uamiId: uamiModule.outputs.id
-//   }
-// }
+module appGwModule 'modules/appGw.bicep' = {
+  name: replace(deploymentNameStructure, '{rtype}', 'appgw')
+  scope: networkingRg
+  params: {
+    location: location
+    namingStructure: namingStructure
+    subnetId: networkModule.outputs.createdSubnets.appgw.id
+    uamiId: uamiModule.outputs.id
+  }
+}
 
 // NOT COVERED HERE
 // * SOME RBAC

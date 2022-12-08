@@ -123,9 +123,38 @@ var postgresqlDnsZoneName = '${postgresqlServerName}.private.postgres.database.a
 // Deploy private DNS zones
 var privateDnsZoneNames = [
   postgresqlDnsZoneName
+]
+
+param coreSubscriptionId string
+
+resource coreDnsZoneRg 'Microsoft.Resources/resourceGroups@2022-09-01' existing = {
+  name: 'UHealth_IT_Core-RG'
+  scope: subscription(coreSubscriptionId)
+}
+
+var corePrivateDnsZoneNames = [
   'privatelink.azurecr.io'
   'privatelink.vaultcore.azure.net'
 ]
+
+module corePrivateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName in corePrivateDnsZoneNames: {
+  name: replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}')
+  scope: coreDnsZoneRg
+  params: {
+    zoneName: zoneName
+    tags: tags
+  }
+}]
+
+// Link the private DNS Zones to the virtual network
+module corePrivateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (zoneName, i) in corePrivateDnsZoneNames: {
+  name: replace(deploymentNameStructure, '{rtype}', 'dns-link-${take(zoneName, 29)}')
+  scope: coreDnsZoneRg
+  params: {
+    dnsZoneName: zoneName
+    vNetId: networkModule.outputs.vNetId
+  }
+}]
 
 module privateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName in privateDnsZoneNames: {
   name: replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}')
@@ -178,7 +207,7 @@ module keyVaultModule 'modules/keyVault.bicep' = {
     keyVaultName: keyVaultShortNameModule.outputs.shortName
     namingStructure: namingStructure
     privateEndpointSubnetId: networkModule.outputs.createdSubnets.privateEndpoints.id
-    privateDnsZoneId: privateDnsZonesModule[2].outputs.zoneId
+    privateDnsZoneId: corePrivateDnsZonesModule[1].outputs.zoneId
     privateEndpointResourceGroupName: networkingRg.name
     tags: tags
   }
@@ -237,7 +266,7 @@ module crModule 'modules/cr.bicep' = {
     // CR will autorotate to use the latest key version
     keyUri: keyVaultKeysModule[1].outputs.keyUriNoVersion
     namingStructure: namingStructure
-    privateDnsZoneId: privateDnsZonesModule[1].outputs.zoneId
+    privateDnsZoneId: corePrivateDnsZonesModule[0].outputs.zoneId
     privateEndpointResourceGroupName: networkingRg.name
     uamiId: uamiModule.outputs.id
     uamiApplicationId: uamiModule.outputs.applicationId

@@ -22,7 +22,8 @@ Param(
 	[securestring]$DbAdminPassword,
 	[string]$DbAadGroupObjectId,
 	[string]$DbAadGroupName,
-	[string]$TargetSubscription
+	[string]$TargetSubscription,
+	[string]$CoreSubscriptionId
 )
 
 $TemplateParameters = @{
@@ -34,6 +35,7 @@ $TemplateParameters = @{
 	dbAdminPassword    = $DbAdminPassword
 	dbAadGroupObjectId = $DbAadGroupObjectId
 	dbAadGroupName     = $DbAadGroupName
+	coreSubscriptionId = $CoreSubscriptionId
 
 	# OPTIONAL
 	deployBastion      = $DeployBastion

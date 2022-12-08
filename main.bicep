@@ -29,6 +29,7 @@ param tags object = {}
 param sequence int = 1
 param namingConvention string = '{rtype}-{wloadname}-{env}-{loc}-{seq}'
 param deploymentTime string = utcNow()
+param keyNameRandomInit string = utcNow()
 
 var sequenceFormatted = format('{0:00}', sequence)
 
@@ -145,8 +146,6 @@ module privateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (
   }
 }]
 
-// TODO: Deploy Log Analytics Workspace// (optional?)
-
 // Deploy UAMI
 module uamiModule 'modules/uami.bicep' = {
   name: replace(deploymentNameStructure, '{rtype}', 'uami')
@@ -186,10 +185,12 @@ module keyVaultModule 'modules/keyVault.bicep' = {
 }
 
 // Create encryption keys for CR, ACI, PG
+// HACK: Creating new keys each time
+var keyNameUniqueSuffix = uniqueString(keyNameRandomInit)
 var keyNames = [
-  'postgres'
-  'cr'
-  'aci-1'
+  'postgres-${keyNameUniqueSuffix}'
+  'cr-${keyNameUniqueSuffix}'
+  'aci-1-${keyNameUniqueSuffix}'
 ]
 
 module keyVaultKeysModule 'modules/keyVault-key.bicep' = [for keyName in keyNames: {
@@ -233,6 +234,7 @@ module crModule 'modules/cr.bicep' = {
   params: {
     location: location
     crName: crShortNameModule.outputs.shortName
+    // CR will autorotate to use the latest key version
     keyUri: keyVaultKeysModule[1].outputs.keyUriNoVersion
     namingStructure: namingStructure
     privateDnsZoneId: privateDnsZonesModule[1].outputs.zoneId
@@ -271,8 +273,6 @@ module postgresqlModule 'modules/postgresql.bicep' = {
   ]
 }
 
-// Deploy ACI?
-
 // Deploy Bastion
 module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
   name: replace(deploymentNameStructure, '{rtype}', 'bas')
@@ -298,9 +298,12 @@ module appGwModule 'modules/appGw.bicep' = {
 }
 
 // NOT COVERED HERE
+// * LOG ANALYTICS WORKSPACE (CREATE DEDICATED CLUSTER?)
+// * + STORAGE ACCOUNT FOR SAVED QUERIES
 // * SOME RBAC
 // * CONTAINER IMAGE DEPLOYMENT
 // * AUDITING
 // * CUSTOM DOMAIN NAMES
 // * TLS FOR APP GW
 // * ROUTE TABLE FOR FW
+// * KEY ROTATION FOR POSTGRESQL

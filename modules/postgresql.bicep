@@ -60,13 +60,3 @@ resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2022-03-08-pr
 
   tags: tags
 }
-
-// resource aadAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2022-03-08-preview' = if (!empty(aadAdminGroupObjectId) && !empty(aadAdminGroupName)) {
-//   name: aadAdminGroupObjectId ?? 'fake'
-//   parent: flexibleServer
-//   properties: {
-//     principalType: 'Group'
-//     tenantId: subscription().tenantId
-//     principalName: aadAdminGroupName
-//   }
-// }

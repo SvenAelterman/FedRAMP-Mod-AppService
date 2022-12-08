@@ -106,7 +106,7 @@ var subnetsToDeploy = union(subnets, AzureBastionSubnet)
 
 // Create the basic network resources: Virtual Network + subnets, Network Security Groups
 module networkModule 'modules/network.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'network')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'network'), 64)
   scope: networkingRg
   params: {
     location: location
@@ -118,12 +118,25 @@ module networkModule 'modules/network.bicep' = {
   }
 }
 
-var postgresqlServerName = replace(namingStructure, '{rtype}', 'pg')
-var postgresqlDnsZoneName = '${postgresqlServerName}.private.postgres.database.azure.com'
-// Deploy private DNS zones
-var privateDnsZoneNames = [
-  postgresqlDnsZoneName
-]
+module postgresqlShortNameModule 'common-modules/shortname.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'pg-name'), 64)
+  scope: databaseRg
+  params: {
+    location: location
+    environment: environment
+    namingConvention: namingConvention
+    resourceType: 'pg'
+    sequence: sequence
+    workloadName: workloadName
+  }
+}
+
+//var postgresqlServerName = replace(namingStructure, '{rtype}', 'pg')
+// var postgresqlDnsZoneName = '${postgresqlServerName}.private.postgres.database.azure.com'
+// // Deploy private DNS zones
+// var privateDnsZoneNames = [
+//   postgresqlDnsZoneName
+// ]
 
 param coreSubscriptionId string
 
@@ -138,17 +151,16 @@ var corePrivateDnsZoneNames = [
 ]
 
 module corePrivateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName in corePrivateDnsZoneNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}'), 64)
   scope: coreDnsZoneRg
   params: {
     zoneName: zoneName
-    tags: tags
   }
 }]
 
 // Link the private DNS Zones to the virtual network
 module corePrivateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (zoneName, i) in corePrivateDnsZoneNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'dns-link-${take(zoneName, 29)}')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-link-${take(zoneName, 29)}'), 64)
   scope: coreDnsZoneRg
   params: {
     dnsZoneName: zoneName
@@ -156,28 +168,28 @@ module corePrivateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [f
   }
 }]
 
-module privateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName in privateDnsZoneNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}')
+module privateDnsZonesModule 'modules/privateDnsZone.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-pg'), 64)
   scope: networkingRg
   params: {
-    zoneName: zoneName
+    zoneName: '${postgresqlShortNameModule.outputs.shortName}.private.postgres.database.azure.com'
     tags: tags
   }
-}]
+}
 
 // Link the private DNS Zones to the virtual network
-module privateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (zoneName, i) in privateDnsZoneNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'dns-link-${take(zoneName, 29)}')
+module privateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-link-pg'), 64)
   scope: networkingRg
   params: {
-    dnsZoneName: zoneName
+    dnsZoneName: '${postgresqlShortNameModule.outputs.shortName}.private.postgres.database.azure.com'
     vNetId: networkModule.outputs.vNetId
   }
-}]
+}
 
 // Deploy UAMI
 module uamiModule 'modules/uami.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'uami')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'uami'), 64)
   scope: securityRg
   params: {
     location: location
@@ -187,7 +199,7 @@ module uamiModule 'modules/uami.bicep' = {
 
 // Deploy KV and its private endpoint
 module keyVaultShortNameModule 'common-modules/shortname.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv-shortname')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-shortname'), 64)
   scope: securityRg
   params: {
     location: location
@@ -200,7 +212,7 @@ module keyVaultShortNameModule 'common-modules/shortname.bicep' = {
 }
 
 module keyVaultModule 'modules/keyVault.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv'), 64)
   scope: securityRg
   params: {
     location: location
@@ -223,7 +235,7 @@ var keyNames = [
 ]
 
 module keyVaultKeysModule 'modules/keyVault-key.bicep' = [for keyName in keyNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv-key-${keyName}')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-key-${keyName}'), 64)
   scope: securityRg
   params: {
     keyName: keyName
@@ -234,7 +246,7 @@ module keyVaultKeysModule 'modules/keyVault-key.bicep' = [for keyName in keyName
 // Assign RBAC for UAMI to KV
 // * Key Vault Crypto User
 module uamiKeyVaultRbacModule 'modules/keyVault-rbac.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv-rbac-uami')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-rbac-uami'), 64)
   scope: securityRg
   params: {
     keyVaultName: keyVaultModule.outputs.keyVaultName
@@ -245,7 +257,7 @@ module uamiKeyVaultRbacModule 'modules/keyVault-rbac.bicep' = {
 
 // Deploy Container Registry
 module crShortNameModule 'common-modules/shortname.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'cr-shortname')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'cr-shortname'), 64)
   scope: containersRg
   params: {
     location: location
@@ -258,7 +270,7 @@ module crShortNameModule 'common-modules/shortname.bicep' = {
 }
 
 module crModule 'modules/cr.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'cr')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'cr'), 64)
   scope: containersRg
   params: {
     location: location
@@ -279,14 +291,14 @@ module crModule 'modules/cr.bicep' = {
 
 // Deploy PG flexible server
 module postgresqlModule 'modules/postgresql.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'postgresql')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'postgresql'), 64)
   scope: databaseRg
   params: {
     location: location
     dbAdminPassword: dbAdminPassword
     postgresqlVersion: postgresqlVersion
-    privateDnsZoneId: privateDnsZonesModule[0].outputs.zoneId
-    serverName: postgresqlServerName
+    privateDnsZoneId: privateDnsZonesModule.outputs.zoneId
+    serverName: postgresqlShortNameModule.outputs.shortName
     subnetId: networkModule.outputs.createdSubnets.postgresql.id
     uamiId: uamiModule.outputs.id
 
@@ -304,7 +316,7 @@ module postgresqlModule 'modules/postgresql.bicep' = {
 
 // Deploy Bastion
 module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
-  name: replace(deploymentNameStructure, '{rtype}', 'bas')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'bas'), 64)
   scope: networkingRg
   params: {
     location: location
@@ -316,7 +328,7 @@ module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
 
 // Deploy APP GW with an empty backend pool
 module appGwModule 'modules/appGw.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'appgw')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'appgw'), 64)
   scope: networkingRg
   params: {
     location: location

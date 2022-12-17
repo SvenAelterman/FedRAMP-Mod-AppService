@@ -21,7 +21,6 @@ Param(
 	[string]$ContainerRegistryUrl,
 	[Parameter(Mandatory)]
 	[string]$EncryptionKeyName,
-	[Parameter(Mandatory)]
 	[string]$EncryptionKeyVersion,
 	[Parameter(Mandatory)]
 	[string]$KeyVaultUrl,

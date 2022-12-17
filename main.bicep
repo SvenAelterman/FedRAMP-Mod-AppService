@@ -27,7 +27,7 @@ param dbAadGroupName string = ''
 param deployBastion bool = false
 param tags object = {}
 param sequence int = 1
-param namingConvention string = '{rtype}-{wloadname}-{env}-{loc}-{seq}'
+param namingConvention string = '{wloadname}-{env}-{rtype}-{loc}-{seq}'
 param deploymentTime string = utcNow()
 param keyNameRandomInit string = utcNow()
 

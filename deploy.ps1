@@ -16,7 +16,7 @@ Param(
 	[string]$WorkloadName,
 	#
 	[int]$Sequence = 1,
-	[string]$NamingConvention = "{rtype}-{wloadname}-{env}-{loc}-{seq}",
+	[string]$NamingConvention = "{wloadname}-{env}-{rtype}-{loc}-{seq}",
 	[bool]$DeployBastion = $false,
 	[string]$PostgreSQLVersion,
 	[securestring]$DbAdminPassword,

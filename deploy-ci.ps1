@@ -31,7 +31,13 @@ Param(
 	[Parameter(Mandatory)]
 	[string]$ResourceGroupName,
 	[Parameter(Mandatory)]
-	[string]$ContainerImage
+	[string]$ContainerImage,
+	[Parameter(Mandatory)]
+	[securestring]$EmailToken,
+	[Parameter(Mandatory)]
+	[securestring]$DatabasePassword,
+	[Parameter(Mandatory)]
+	[string]$AppGwUrl
 )
 
 $TemplateParameters = @{
@@ -47,6 +53,9 @@ $TemplateParameters = @{
 	kvUrl            = $KeyVaultUrl
 	subnetId         = $SubnetId
 	uamiId           = $UAMI
+	databasePassword = $DatabasePassword
+	emailToken       = $EmailToken
+	appGwUrl         = $AppGwUrl
 
 	# OPTIONAL
 	sequence         = $Sequence

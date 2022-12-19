@@ -9,6 +9,13 @@ param crUrl string
 param ciImage string
 param subnetId string
 
+@secure()
+param emailToken string
+@secure()
+param databasePassword string
+
+param appUrl string
+
 param tags object = {}
 
 resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2022-09-01' = {
@@ -36,7 +43,56 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2022-09-01'
         properties: {
           image: '${crUrl}/${ciImage}'
           // TODO: Add here
-          environmentVariables: []
+          environmentVariables: [
+            {
+              name: 'NODE_ENV'
+              value: ''
+            }
+            {
+              name: 'DB_NAME'
+              value: ''
+            }
+            {
+              name: 'DB_USER'
+              value: ''
+            }
+            {
+              name: 'DB_HOST'
+              value: ''
+            }
+            {
+              name: 'DB_PASS'
+              secureValue: databasePassword
+            }
+            {
+              name: 'DB_PORT'
+              value: ''
+            }
+            {
+              name: 'PORT'
+              value: ''
+            }
+            {
+              name: 'PRIVATE_KEY'
+              value: ''
+            }
+            {
+              name: 'CERT'
+              value: ''
+            }
+            {
+              name: 'EMAIL_TOKEN'
+              secureValue: emailToken
+            }
+            {
+              name: 'EMAIL_FROM'
+              value: ''
+            }
+            {
+              name: 'CURRENT_URL'
+              value: appUrl
+            }
+          ]
           ports: [
             {
               port: 80

@@ -18,6 +18,11 @@ param ciKeyName string
 param kvUrl string
 param subnetId string
 param uamiId string
+@secure()
+param emailToken string
+@secure()
+param databasePassword string
+param appGwUrl string
 
 param tags object = {}
 param sequence int = 1
@@ -42,6 +47,9 @@ module cgModule 'modules/ci.bicep' = {
     kvUrl: kvUrl
     subnetId: subnetId
     uamiId: uamiId
+    emailToken: emailToken
+    databasePassword: databasePassword
+    appUrl: appGwUrl
     tags: tags
   }
 }

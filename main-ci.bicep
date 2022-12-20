@@ -29,13 +29,34 @@ param sequence int = 1
 param namingConvention string = '{wloadname}-{env}-{rtype}-{loc}-{seq}'
 param deploymentTime string = utcNow()
 
-var sequenceFormatted = format('{0:00}', sequence)
+//var sequenceFormatted = format('{0:00}', sequence)
 var deploymentNameStructure = '${workloadName}-${environment}-{rtype}-${deploymentTime}'
 
-var thisNamingStructure = replace(replace(replace(namingConvention, '{env}', environment), '{loc}', location), '{seq}', sequenceFormatted)
-var namingStructure = replace(thisNamingStructure, '{wloadname}', workloadName)
+// var thisNamingStructure = replace(replace(replace(namingConvention, '{env}', environment), '{loc}', location), '{seq}', sequenceFormatted)
+// var namingStructure = replace(thisNamingStructure, '{wloadname}', workloadName)
 
-module cgModule 'modules/ci.bicep' = {
+// module logModule 'modules/log.bicep' = {
+//   name: replace(deploymentNameStructure, '{rtype}', 'log')
+//   params: {
+//     location: location
+//     namingStructure: namingStructure
+//     tags: tags
+//   }
+// }
+
+module ciShortNameModule 'common-modules/shortname.bicep' = {
+  name: replace(deploymentNameStructure, '{rtype}', 'ci-name')
+  params: {
+    location: location
+    environment: environment
+    namingConvention: namingConvention
+    resourceType: 'ci'
+    sequence: sequence
+    workloadName: workloadName
+  }
+}
+
+module ciModule 'modules/ci.bicep' = {
   name: replace(deploymentNameStructure, '{rtype}', 'ci')
   params: {
     location: location
@@ -43,7 +64,7 @@ module cgModule 'modules/ci.bicep' = {
     ciImage: ciImage
     ciKeyName: ciKeyName
     //ciKeyVersion: ciKeyVersion
-    containerGroupName: replace(namingStructure, '{rtype}', 'ci')
+    containerGroupName: ciShortNameModule.outputs.shortName
     kvUrl: kvUrl
     subnetId: subnetId
     uamiId: uamiId

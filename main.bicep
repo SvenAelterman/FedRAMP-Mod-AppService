@@ -289,6 +289,8 @@ module crModule 'modules/cr.bicep' = {
   ]
 }
 
+// TODO: RBAC for UAMI AcrPull
+
 // Deploy PG flexible server
 module postgresqlModule 'modules/postgresql.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'postgresql'), 64)

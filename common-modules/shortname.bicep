@@ -14,6 +14,7 @@ param location string
   'st'
   'cr'
   'pg'
+  'ci'
 ])
 param resourceType string
 param environment string
@@ -39,6 +40,11 @@ var Defs = {
     alwaysRemoveHyphens: true
   }
   pg: {
+    lowerCase: true
+    maxLength: 63
+    alwaysRemoveHyphens: false
+  }
+  ci: {
     lowerCase: true
     maxLength: 63
     alwaysRemoveHyphens: false

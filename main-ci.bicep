@@ -29,20 +29,20 @@ param sequence int = 1
 param namingConvention string = '{wloadname}-{env}-{rtype}-{loc}-{seq}'
 param deploymentTime string = utcNow()
 
-//var sequenceFormatted = format('{0:00}', sequence)
+var sequenceFormatted = format('{0:00}', sequence)
 var deploymentNameStructure = '${workloadName}-${environment}-{rtype}-${deploymentTime}'
 
-// var thisNamingStructure = replace(replace(replace(namingConvention, '{env}', environment), '{loc}', location), '{seq}', sequenceFormatted)
-// var namingStructure = replace(thisNamingStructure, '{wloadname}', workloadName)
+var thisNamingStructure = replace(replace(replace(namingConvention, '{env}', environment), '{loc}', location), '{seq}', sequenceFormatted)
+var namingStructure = replace(thisNamingStructure, '{wloadname}', workloadName)
 
-// module logModule 'modules/log.bicep' = {
-//   name: replace(deploymentNameStructure, '{rtype}', 'log')
-//   params: {
-//     location: location
-//     namingStructure: namingStructure
-//     tags: tags
-//   }
-// }
+module logModule 'modules/log.bicep' = {
+  name: replace(deploymentNameStructure, '{rtype}', 'log')
+  params: {
+    location: location
+    namingStructure: namingStructure
+    tags: tags
+  }
+}
 
 module ciShortNameModule 'common-modules/shortname.bicep' = {
   name: replace(deploymentNameStructure, '{rtype}', 'ci-name')
@@ -71,6 +71,7 @@ module ciModule 'modules/ci.bicep' = {
     emailToken: emailToken
     databasePassword: databasePassword
     appUrl: appGwUrl
+    wsName: logModule.outputs.workspaceName
     tags: tags
   }
 }

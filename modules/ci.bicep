@@ -2,12 +2,11 @@ param containerGroupName string
 param location string
 param uamiId string
 param kvUrl string
-// #disable-next-line no-unused-params
-// param ciKeyVersion string
 param ciKeyName string
 param crUrl string
 param ciImage string
 param subnetId string
+param wsName string
 
 @secure()
 param emailToken string
@@ -17,6 +16,10 @@ param databasePassword string
 param appUrl string
 
 param tags object = {}
+
+resource log 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
+  name: wsName
+}
 
 resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2022-09-01' = {
   name: containerGroupName
@@ -29,10 +32,15 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2022-09-01'
   }
   properties: {
     sku: 'Standard'
+    diagnostics: {
+      logAnalytics: {
+        workspaceId: log.id
+        workspaceKey: listKeys(log.id, log.apiVersion).primarySharedKey
+      }
+    }
     #disable-next-line BCP035
     encryptionProperties: {
       keyName: ciKeyName
-      //keyVersion: ciKeyVersion
       vaultBaseUrl: kvUrl
       identity: uamiId
     }
@@ -42,7 +50,6 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2022-09-01'
 
         properties: {
           image: '${crUrl}/${ciImage}'
-          // TODO: Add here
           environmentVariables: [
             {
               name: 'NODE_ENV'

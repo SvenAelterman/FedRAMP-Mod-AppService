@@ -3,7 +3,7 @@ param location string
 
 param tags object = {}
 
-resource logAnalyticsWS 'Microsoft.OperationalInsights/workspaces@2021-12-01-preview' = {
+resource logAnalyticsWS 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: replace(namingStructure, '{rtype}', 'log')
   location: location
   tags: tags

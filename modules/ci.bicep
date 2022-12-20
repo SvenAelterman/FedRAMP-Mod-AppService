@@ -34,7 +34,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2022-09-01'
     sku: 'Standard'
     diagnostics: {
       logAnalytics: {
-        workspaceId: log.id
+        workspaceId: log.properties.customerId
         workspaceKey: listKeys(log.id, log.apiVersion).primarySharedKey
       }
     }
@@ -130,7 +130,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2022-09-01'
       ]
       type: 'Private'
     }
-    restartPolicy: 'OnFailure'
+    restartPolicy: 'Always'
     osType: 'Linux'
     subnetIds: [
       {

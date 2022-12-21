@@ -28,7 +28,7 @@ param removeSegmentSeparator bool = false
 param segmentSeparator string = '-'
 
 param addRandomChars int = 0
-param time string = utcNow()
+param randomInit string = utcNow()
 
 // Define the behavior of this module for each supported resource type
 var Defs = {
@@ -76,7 +76,7 @@ var shortLocationValue = shortLocations[location]
 var sequenceFormatted = format('{0:00}', sequence)
 
 // Just in case we need them
-var randomChars = addRandomChars > 0 ? take(uniqueString(workloadName, time), addRandomChars) : ''
+var randomChars = addRandomChars > 0 ? take(uniqueString(workloadName, randomInit), addRandomChars) : ''
 
 // Remove hyphens from the naming convention if needed
 var namingConventionSegmentSeparatorProcessed = doRemoveSegmentSeparator ? replace(namingConvention, segmentSeparator, '') : namingConvention
@@ -106,6 +106,6 @@ var actualNameCased = lowerCase ? toLower(actualName) : actualName
 output shortName string = take(actualNameCased, maxLength)
 
 // For debugging only
-output workloadNameCharsKept int = workloadNameCharsToKeep
-output originalShortNameLength int = length(shortName)
-output actualNameCased string = actualNameCased
+// output workloadNameCharsKept int = workloadNameCharsToKeep
+// output originalShortNameLength int = length(shortName)
+// output actualNameCased string = actualNameCased

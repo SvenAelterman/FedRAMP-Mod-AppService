@@ -58,3 +58,4 @@ resource newKey 'Microsoft.KeyVault/vaults/keys@2022-07-01' = {
 
 output keyUri string = newKey.properties.keyUriWithVersion
 output keyUriNoVersion string = newKey.properties.keyUri
+output keyName string = newKey.name

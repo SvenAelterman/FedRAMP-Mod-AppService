@@ -28,8 +28,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     networkAcls: {
       bypass: 'AzureServices'
       defaultAction: allowPublicAccess ? 'Allow' : 'Deny'
-      // ipRules: []
-      // virtualNetworkRules: []
     }
     publicNetworkAccess: allowPublicAccess ? 'Enabled' : 'Disabled'
   }
@@ -45,6 +43,7 @@ resource kvLock 'Microsoft.Authorization/locks@2020-05-01' = {
   }
 }
 
+// Deploy a private endpoint for the Key Vault
 var peName = replace(namingStructure, '{rtype}', 'pe-kv')
 
 resource peRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
@@ -69,3 +68,4 @@ module pe 'privateEndpoint.bicep' = {
 }
 
 output keyVaultName string = keyVault.name
+output keyVaultUrl string = keyVault.properties.vaultUri

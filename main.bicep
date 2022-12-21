@@ -17,19 +17,31 @@ param postgresqlVersion string
 @secure()
 param dbAdminPassword string
 
-param vNetAddressSpace string = '10.24.{octet3}.0'
-param vNetCidr string = '16'
-param subnetCidr string = '24'
+@minValue(0)
+@maxValue(128)
+param vNetAddressSpaceOctet4Min int
+param vNetAddressSpace string
+@minValue(24)
+@maxValue(25)
+param vNetCidr int
+@maxValue(28)
+@minValue(27)
+param subnetCidr int
 
 // Optional parameters
 param dbAadGroupObjectId string = ''
 param dbAadGroupName string = ''
 param deployBastion bool = false
+param deployDefaultSubnet bool = false
 param tags object = {}
 param sequence int = 1
-param namingConvention string = '{rtype}-{wloadname}-{env}-{loc}-{seq}'
+param namingConvention string = '{wloadname}-{env}-{rtype}-{loc}-{seq}'
 param deploymentTime string = utcNow()
 param keyNameRandomInit string = utcNow()
+
+// To allow for shared DNS Zone
+param coreSubscriptionId string
+param coreDnsZoneResourceGroupName string
 
 var sequenceFormatted = format('{0:00}', sequence)
 
@@ -41,105 +53,160 @@ var rgNamingStructure = replace(thisNamingStructure, '{rtype}', 'rg')
 
 // Create resource groups
 resource networkingRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', 'networking')
+  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-networking')
   location: location
 }
 
-resource containersRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', 'containers')
+resource containerRegRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-containerregistry')
+  location: location
+}
+
+resource appsRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-apps')
   location: location
 }
 
 resource databaseRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', 'database')
+  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-database')
   location: location
 }
 
 resource securityRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', 'security')
+  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-security')
   location: location
 }
 
+resource storageRg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-storage')
+  location: location
+}
+
+resource coreDnsZoneRg 'Microsoft.Resources/resourceGroups@2022-09-01' existing = {
+  name: coreDnsZoneResourceGroupName
+  scope: subscription(coreSubscriptionId)
+}
+
+var SubnetSize = 32 - subnetCidr
+var subnetBoundaryArray = [for i in range(0, SubnetSize): 2]
+var subnetBoundary = reduce(subnetBoundaryArray, 1, (cur, next) => cur * next)
+
 // Create virtual network and subnets
 var subnets = {
-  default: {
-    addressPrefix: '${replace(vNetAddressSpace, '{octet3}', '0')}/${subnetCidr}'
-    serviceEndpoints: []
-    delegation: ''
-    securityRules: loadJsonContent('content/nsgrules/default.json')
-  }
   privateEndpoints: {
-    addressPrefix: '${replace(vNetAddressSpace, '{octet3}', '1')}/${subnetCidr}'
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (0 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
     delegation: ''
     securityRules: []
   }
   postgresql: {
-    addressPrefix: '${replace(vNetAddressSpace, '{octet3}', '2')}/${subnetCidr}'
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (1 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
     delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
     securityRules: loadJsonContent('content/nsgrules/postgresql.json')
   }
-  aci: {
-    addressPrefix: '${replace(vNetAddressSpace, '{octet3}', '3')}/${subnetCidr}'
+  apps: {
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (2 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
+    // TODO: Change to Microsoft.Web/sites if using App Service instead of Container Instances
     delegation: 'Microsoft.ContainerInstance/containerGroups'
     securityRules: []
   }
   appgw: {
-    addressPrefix: '${replace(vNetAddressSpace, '{octet3}', '255')}/${subnetCidr}'
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (3 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/appGw.json')
   }
 }
-var AzureBastionSubnet = deployBastion ? {
+
+var defaultSubnet = deployDefaultSubnet ? {
+  default: {
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (4 * subnetBoundary)))}/${subnetCidr}'
+    serviceEndpoints: []
+    delegation: ''
+    securityRules: loadJsonContent('content/nsgrules/default.json')
+  }
+} : {}
+
+var azureBastionSubnet = deployBastion ? {
   AzureBastionSubnet: {
-    addressPrefix: '${replace(vNetAddressSpace, '{octet3}', '254')}/${subnetCidr}'
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (5 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/bastion.json')
   }
 } : {}
 
-var subnetsToDeploy = union(subnets, AzureBastionSubnet)
+var subnetsToDeploy = union(subnets, azureBastionSubnet, defaultSubnet)
 
 // Create the basic network resources: Virtual Network + subnets, Network Security Groups
 module networkModule 'modules/network.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'network')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'network'), 64)
   scope: networkingRg
   params: {
     location: location
     deploymentNameStructure: deploymentNameStructure
     subnetDefs: subnetsToDeploy
-    vNetAddressPrefix: '${replace(vNetAddressSpace, '{octet3}', '0')}/${vNetCidr}'
+    vNetAddressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min))}/${vNetCidr}'
     namingStructure: namingStructure
     tags: tags
   }
 }
 
-var postgresqlServerName = replace(namingStructure, '{rtype}', 'pg')
-var postgresqlDnsZoneName = '${postgresqlServerName}.private.postgres.database.azure.com'
-// Deploy private DNS zones
-var privateDnsZoneNames = [
-  postgresqlDnsZoneName
+// Create a valid name for the PostgreSQL flexible server
+module postgresqlShortNameModule 'common-modules/shortname.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'pg-name'), 64)
+  scope: databaseRg
+  params: {
+    location: location
+    environment: environment
+    namingConvention: namingConvention
+    resourceType: 'pg'
+    sequence: sequence
+    workloadName: workloadName
+  }
+}
+
+var corePrivateDnsZoneNames = [
+  // Do not change order, values are referenced by index later
   'privatelink.azurecr.io'
   'privatelink.vaultcore.azure.net'
 ]
 
-module privateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName in privateDnsZoneNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}')
+// Create DNS zones in the workload subscription specific to this workload (PostgreSQL)
+module pgDnsZonesModule 'modules/privateDnsZone.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-pg'), 64)
   scope: networkingRg
   params: {
-    zoneName: zoneName
+    zoneName: '${postgresqlShortNameModule.outputs.shortName}.private.postgres.database.azure.com'
     tags: tags
+  }
+}
+
+// Link the private DNS Zones to the virtual network
+module pgDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-link-pg'), 64)
+  scope: networkingRg
+  params: {
+    dnsZoneName: '${postgresqlShortNameModule.outputs.shortName}.private.postgres.database.azure.com'
+    vNetId: networkModule.outputs.vNetId
+  }
+}
+
+// Create DNS zones in the shared core
+module corePrivateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName in corePrivateDnsZoneNames: {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}'), 64)
+  scope: coreDnsZoneRg
+  params: {
+    zoneName: zoneName
   }
 }]
 
 // Link the private DNS Zones to the virtual network
-module privateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (zoneName, i) in privateDnsZoneNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'dns-link-${take(zoneName, 29)}')
-  scope: networkingRg
+module corePrivateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (zoneName, i) in corePrivateDnsZoneNames: {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'dns-link-${take(zoneName, 29)}'), 64)
+  scope: coreDnsZoneRg
   params: {
     dnsZoneName: zoneName
     vNetId: networkModule.outputs.vNetId
@@ -148,7 +215,7 @@ module privateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (
 
 // Deploy UAMI
 module uamiModule 'modules/uami.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'uami')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'uami'), 64)
   scope: securityRg
   params: {
     location: location
@@ -158,7 +225,7 @@ module uamiModule 'modules/uami.bicep' = {
 
 // Deploy KV and its private endpoint
 module keyVaultShortNameModule 'common-modules/shortname.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv-shortname')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-shortname'), 64)
   scope: securityRg
   params: {
     location: location
@@ -171,14 +238,14 @@ module keyVaultShortNameModule 'common-modules/shortname.bicep' = {
 }
 
 module keyVaultModule 'modules/keyVault.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv'), 64)
   scope: securityRg
   params: {
     location: location
     keyVaultName: keyVaultShortNameModule.outputs.shortName
     namingStructure: namingStructure
     privateEndpointSubnetId: networkModule.outputs.createdSubnets.privateEndpoints.id
-    privateDnsZoneId: privateDnsZonesModule[2].outputs.zoneId
+    privateDnsZoneId: corePrivateDnsZonesModule[1].outputs.zoneId
     privateEndpointResourceGroupName: networkingRg.name
     tags: tags
   }
@@ -190,11 +257,12 @@ var keyNameUniqueSuffix = uniqueString(keyNameRandomInit)
 var keyNames = [
   'postgres-${keyNameUniqueSuffix}'
   'cr-${keyNameUniqueSuffix}'
-  'aci-1-${keyNameUniqueSuffix}'
+  'aci-${keyNameUniqueSuffix}'
+  'st-${keyNameUniqueSuffix}'
 ]
 
 module keyVaultKeysModule 'modules/keyVault-key.bicep' = [for keyName in keyNames: {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv-key-${keyName}')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-key-${keyName}'), 64)
   scope: securityRg
   params: {
     keyName: keyName
@@ -205,7 +273,7 @@ module keyVaultKeysModule 'modules/keyVault-key.bicep' = [for keyName in keyName
 // Assign RBAC for UAMI to KV
 // * Key Vault Crypto User
 module uamiKeyVaultRbacModule 'modules/keyVault-rbac.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'kv-rbac-uami')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-rbac-uami'), 64)
   scope: securityRg
   params: {
     keyVaultName: keyVaultModule.outputs.keyVaultName
@@ -216,8 +284,8 @@ module uamiKeyVaultRbacModule 'modules/keyVault-rbac.bicep' = {
 
 // Deploy Container Registry
 module crShortNameModule 'common-modules/shortname.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'cr-shortname')
-  scope: containersRg
+  name: take(replace(deploymentNameStructure, '{rtype}', 'cr-shortname'), 64)
+  scope: containerRegRg
   params: {
     location: location
     environment: environment
@@ -229,15 +297,15 @@ module crShortNameModule 'common-modules/shortname.bicep' = {
 }
 
 module crModule 'modules/cr.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'cr')
-  scope: containersRg
+  name: take(replace(deploymentNameStructure, '{rtype}', 'cr'), 64)
+  scope: containerRegRg
   params: {
     location: location
     crName: crShortNameModule.outputs.shortName
     // CR will autorotate to use the latest key version
     keyUri: keyVaultKeysModule[1].outputs.keyUriNoVersion
     namingStructure: namingStructure
-    privateDnsZoneId: privateDnsZonesModule[1].outputs.zoneId
+    privateDnsZoneId: corePrivateDnsZonesModule[0].outputs.zoneId
     privateEndpointResourceGroupName: networkingRg.name
     uamiId: uamiModule.outputs.id
     uamiApplicationId: uamiModule.outputs.applicationId
@@ -250,18 +318,19 @@ module crModule 'modules/cr.bicep' = {
 
 // Deploy PG flexible server
 module postgresqlModule 'modules/postgresql.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'postgresql')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'postgresql'), 64)
   scope: databaseRg
   params: {
     location: location
     dbAdminPassword: dbAdminPassword
     postgresqlVersion: postgresqlVersion
-    privateDnsZoneId: privateDnsZonesModule[0].outputs.zoneId
-    serverName: postgresqlServerName
+    privateDnsZoneId: pgDnsZonesModule.outputs.zoneId
+    serverName: postgresqlShortNameModule.outputs.shortName
     subnetId: networkModule.outputs.createdSubnets.postgresql.id
     uamiId: uamiModule.outputs.id
 
     // Enable AAD authentication to DB server
+    // If either of these values are empty, AAD auth will not be enabled
     aadAdminGroupName: dbAadGroupName
     aadAdminGroupObjectId: dbAadGroupObjectId
 
@@ -275,7 +344,7 @@ module postgresqlModule 'modules/postgresql.bicep' = {
 
 // Deploy Bastion
 module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
-  name: replace(deploymentNameStructure, '{rtype}', 'bas')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'bas'), 64)
   scope: networkingRg
   params: {
     location: location
@@ -287,7 +356,7 @@ module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
 
 // Deploy APP GW with an empty backend pool
 module appGwModule 'modules/appGw.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'appgw')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'appgw'), 64)
   scope: networkingRg
   params: {
     location: location
@@ -299,18 +368,70 @@ module appGwModule 'modules/appGw.bicep' = {
 
 output keyVaultKeysUniqueNameSuffix string = keyNameUniqueSuffix
 
-// TODO: Add Storage account with public access enabled
+// TODO: Add Storage account with CMK with public access enabled
+module publicStorageAccountNameModule 'common-modules/shortname.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'st-pub-name'), 64)
+  scope: storageRg
+  params: {
+    location: location
+    environment: environment
+    namingConvention: namingConvention
+    resourceType: 'st'
+    sequence: sequence
+    // Hyphen added here for clarity, but it will be removed by the module
+    workloadName: '${workloadName}-pub'
+  }
+}
 
-// TODO: Do not container registry in the same RG as the container instances
+module publicStorageAccountModule 'modules/storageAccount.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'st-pub'), 64)
+  scope: storageRg
+  params: {
+    location: location
+    blobContainerName: '$web'
+    storageAccountName: publicStorageAccountNameModule.outputs.shortName
+    keyVaultUrl: keyVaultModule.outputs.keyVaultUrl
+    keyName: keyVaultKeysModule[3].outputs.keyName
+    uamiId: uamiModule.outputs.id
+    tags: tags
+  }
+  dependsOn: [
+    uamiKeyVaultRbacModule
+  ]
+}
 
-// TODO: Add Log Analytics workspace
+// TODO: CDN for custom domain for storage account
+
+output publicStorageAccountName string = publicStorageAccountNameModule.outputs.shortName
+output publicStorageAccountResourceGroupName string = storageRg.name
+
+// TODO: Add storage account with CMK for saved queries in LA
+
+// Add Log Analytics workspace
+module logModule 'modules/log.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'log'), 64)
+  scope: securityRg
+  params: {
+    location: location
+    namingStructure: namingStructure
+    tags: tags
+  }
+}
+
+// TODO: Consider App Service instead of Container Instances
+// If so:
+// Add App Insights?
+// Add Key Vault Secrets for database password, etc.
+// Update delegation of "apps" subnet
+
+// TODO: Consider deploying database and public storage account in the same "data" RG
 
 // NOT COVERED HERE
 // * LOG ANALYTICS WORKSPACE (CREATE DEDICATED CLUSTER?)
 // * + STORAGE ACCOUNT FOR SAVED QUERIES
 // * SOME RBAC
 // * CONTAINER IMAGE DEPLOYMENT
-// * AUDITING
+// * AUDITING / DIAGNOSTIC SETTINGS
 // * CUSTOM DOMAIN NAMES
 // * TLS FOR APP GW
 // * ROUTE TABLE FOR FW

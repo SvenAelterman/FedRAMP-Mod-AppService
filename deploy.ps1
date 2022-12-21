@@ -8,42 +8,58 @@
 Param(
 	[ValidateSet('eastus2', 'eastus')]
 	[string]$Location = 'eastus',
-	# The environment descriptor
 	[ValidateSet('test', 'demo', 'prod')]
 	[string]$Environment = 'test',
-	#
 	[Parameter(Mandatory = $true)]
 	[string]$WorkloadName,
-	#
 	[int]$Sequence = 1,
-	[string]$NamingConvention = "{rtype}-{wloadname}-{env}-{loc}-{seq}",
+	[string]$NamingConvention,
 	[bool]$DeployBastion = $false,
+	[Parameter(Mandatory = $true)]
 	[string]$PostgreSQLVersion,
+	[Parameter(Mandatory = $true)]
 	[securestring]$DbAdminPassword,
 	[string]$DbAadGroupObjectId,
 	[string]$DbAadGroupName,
-	[string]$TargetSubscription
+	[Parameter(Mandatory = $true)]
+	[string]$TargetSubscription,
+	[Parameter(Mandatory = $true)]
+	[string]$CoreSubscriptionId,
+	[Parameter(Mandatory = $true)]
+	[string]$CoreDnsZoneResourceGroupName,
+	[bool]$DeployDefaultSubnet = $false,
+	[Parameter(Mandatory = $true)]
+	[int]$VNetAddressSpaceOctet4Min,
+	[Parameter(Mandatory = $true)]
+	[string]$VNetAddressSpace,
+	[Parameter(Mandatory = $true)]
+	[int]$VNetCidr,
+	[Parameter(Mandatory = $true)]
+	[int]$SubnetCidr,
+	[PSCustomObject]$Tags
 )
 
 $TemplateParameters = @{
 	# REQUIRED
-	location           = $Location
-	environment        = $Environment
-	workloadName       = $WorkloadName
-	postgresqlVersion  = $PostgreSQLVersion
-	dbAdminPassword    = $DbAdminPassword
-	dbAadGroupObjectId = $DbAadGroupObjectId
-	dbAadGroupName     = $DbAadGroupName
+	location                     = $Location
+	environment                  = $Environment
+	workloadName                 = $WorkloadName
+	postgresqlVersion            = $PostgreSQLVersion
+	dbAdminPassword              = $DbAdminPassword
+	dbAadGroupObjectId           = $DbAadGroupObjectId
+	dbAadGroupName               = $DbAadGroupName
+	coreSubscriptionId           = $CoreSubscriptionId
+	coreDnsZoneResourceGroupName = $CoreDnsZoneResourceGroupName
+	vNetAddressSpaceOctet4Min    = $VNetAddressSpaceOctet4Min
+	vNetAddressSpace             = $VNetAddressSpace
+	vNetCidr                     = $VNetCidr
+	subnetCidr                   = $SubnetCidr
 
 	# OPTIONAL
-	deployBastion      = $DeployBastion
-	sequence           = $Sequence
-	namingConvention   = $NamingConvention
-	tags               = @{
-		'date-created' = (Get-Date -Format 'yyyy-MM-dd')
-		purpose        = $Environment
-		lifetime       = 'short'
-	}
+	deployBastion                = $DeployBastion
+	deployDefaultSubnet          = $DeployDefaultSubnet
+	sequence                     = $Sequence
+	namingConvention             = $NamingConvention
 }
 
 Select-AzSubscription $TargetSubscription
@@ -70,6 +86,15 @@ $DeploymentResult
 if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	Write-Host "🔥 Deployment successful!"
 
+	Write-Verbose "Enabling Static Websites on Azure Storage"
+	$PublicStorageAccountName = $DeploymentResult.Outputs.publicStorageAccountName.Value
+	$PublicStorageAccountResourceGroupName = $DeploymentResult.Outputs.publicStorageAccountResourceGroupName.Value
+
+	$PublicStorageAccount = Get-AzStorageAccount -ResourceGroupName $PublicStorageAccountResourceGroupName -AccountName $PublicStorageAccountName
+	$StorageContext = $PublicStorageAccount.Context
+
+	Enable-AzStorageStaticWebsite -Context $StorageContext
+
 	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
-	Write-Host "Be sure to capture the Key Vault keys' unique suffix: '$KeysSuffix'"
+	Write-Warning "`nBe sure to capture the Key Vault keys' unique suffix: '$KeysSuffix'"
 }

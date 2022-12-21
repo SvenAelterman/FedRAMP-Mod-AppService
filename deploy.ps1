@@ -70,5 +70,6 @@ $DeploymentResult
 if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	Write-Host "🔥 Deployment successful!"
 
-	Write-Host "Be sure to capture the Key Vault keys' unique suffix"
+	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
+	Write-Host "Be sure to capture the Key Vault keys' unique suffix: '$KeysSuffix'"
 }

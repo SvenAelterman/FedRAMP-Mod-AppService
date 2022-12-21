@@ -13,6 +13,8 @@ param location string
   'kv'
   'st'
   'cr'
+  'pg'
+  'ci'
 ])
 param resourceType string
 param environment string
@@ -36,6 +38,16 @@ var Defs = {
     lowerCase: false
     maxLength: 50
     alwaysRemoveHyphens: true
+  }
+  pg: {
+    lowerCase: true
+    maxLength: 63
+    alwaysRemoveHyphens: false
+  }
+  ci: {
+    lowerCase: true
+    maxLength: 63
+    alwaysRemoveHyphens: false
   }
 }
 

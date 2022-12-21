@@ -185,7 +185,7 @@ module keyVaultModule 'modules/keyVault.bicep' = {
 }
 
 // Create encryption keys for CR, ACI, PG
-// HACK: Creating new keys each time
+// Must create new keys each time because key expiration dates can't be updated with Bicep/ARM
 var keyNameUniqueSuffix = uniqueString(keyNameRandomInit)
 var keyNames = [
   'postgres-${keyNameUniqueSuffix}'
@@ -296,6 +296,14 @@ module appGwModule 'modules/appGw.bicep' = {
     uamiId: uamiModule.outputs.id
   }
 }
+
+output keyVaultKeysUniqueNameSuffix string = keyNameUniqueSuffix
+
+// TODO: Add Storage account with public access enabled
+
+// TODO: Do not container registry in the same RG as the container instances
+
+// TODO: Add Log Analytics workspace
 
 // NOT COVERED HERE
 // * LOG ANALYTICS WORKSPACE (CREATE DEDICATED CLUSTER?)

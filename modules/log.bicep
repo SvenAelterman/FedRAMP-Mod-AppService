@@ -1,5 +1,6 @@
 param namingStructure string
 param location string
+param savedQueryStorageAccountName string
 
 param tags object = {}
 
@@ -15,6 +16,21 @@ resource lock 'Microsoft.Authorization/locks@2017-04-01' = {
   scope: logAnalyticsWS
   properties: {
     level: 'CanNotDelete'
+  }
+}
+
+resource savedQueryStorageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' existing = {
+  name: savedQueryStorageAccountName
+}
+
+// Set the storage account for saved queries
+resource logLinkedStorageAccount 'Microsoft.OperationalInsights/workspaces/linkedStorageAccounts@2020-08-01' = {
+  name: 'Query'
+  parent: logAnalyticsWS
+  properties: {
+    storageAccountIds: [
+      savedQueryStorageAccount.id
+    ]
   }
 }
 

@@ -4,9 +4,10 @@ param blobContainerName string
 param uamiId string
 param keyName string
 param keyVaultUrl string
+param allowBlobPublicAccess bool = false
 param tags object
 
-resource storage 'Microsoft.Storage/storageAccounts@2021-09-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   name: storageAccountName
   location: location
   kind: 'StorageV2'
@@ -16,7 +17,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   properties: {
     // This does not need to be enable for static websites support
     // Ref: https://learn.microsoft.com/azure/storage/blobs/storage-blob-static-website#impact-of-setting-the-access-level-on-the-web-container
-    allowBlobPublicAccess: false
+    allowBlobPublicAccess: allowBlobPublicAccess
     defaultToOAuthAuthentication: true
     isHnsEnabled: false
     minimumTlsVersion: 'TLS1_2'
@@ -64,7 +65,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2021-09-01' = {
 
 resource blobServices 'Microsoft.Storage/storageAccounts/blobServices@2021-09-01' = {
   name: 'default'
-  parent: storage
+  parent: storageAccount
   properties: {
     containerDeleteRetentionPolicy: {
       days: 7
@@ -79,3 +80,5 @@ resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/container
   properties: {
   }
 }
+
+output storageAccountName string = storageAccount.name

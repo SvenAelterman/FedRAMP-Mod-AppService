@@ -89,19 +89,19 @@ resource securityRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
-resource computeRg 'Microsoft.Resources/resourceGroups@2022-09-01' = if (deployComputeRg) {
+resource computeRg 'Microsoft.Resources/resourceGroups@2021-04-01' = if (deployComputeRg) {
   name: replace(namingStructure, '{rtype}', 'rg-compute')
   location: location
   tags: tags
 }
 
-// resource storageRg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+// resource storageRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 //   name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-storage')
 //   location: location
 //   tags: tags
 // }
 
-resource coreDnsZoneRg 'Microsoft.Resources/resourceGroups@2022-09-01' existing = {
+resource coreDnsZoneRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
   name: coreDnsZoneResourceGroupName
   scope: subscription(coreSubscriptionId)
 }
@@ -400,7 +400,7 @@ output keyVaultKeysUniqueNameSuffix string = keyVaultKeyWrapperModule.outputs.ke
 
 // Add Storage account with CMK with public access enabled
 module publicStorageAccountNameModule 'common-modules/shortname.bicep' = {
-  name: take(replace(deploymentNameStructure, '{rtype}', 'st-pub-name'), 64)
+  name: take(replace(deploymentNameStructure, '{rtype}', 'st-web-name'), 64)
   scope: dataRg
   params: {
     location: location
@@ -409,7 +409,7 @@ module publicStorageAccountNameModule 'common-modules/shortname.bicep' = {
     resourceType: 'st'
     sequence: sequence
     // Hyphen added here for clarity, but it will be removed by the module
-    workloadName: '${workloadName}-pub'
+    workloadName: '${workloadName}-web'
   }
 }
 
@@ -423,6 +423,7 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
     keyVaultUrl: keyVaultModule.outputs.keyVaultUrl
     keyName: keyVaultKeyWrapperModule.outputs.createdKeys.st.name
     uamiId: uamiModule.outputs.id
+    allowBlobPublicAccess: true
     tags: tags
   }
   dependsOn: [
@@ -474,7 +475,7 @@ module logModule 'modules/log.bicep' = {
   params: {
     location: location
     namingStructure: namingStructure
-    // TODO: Reference storage account for saved queries
+    savedQueryStorageAccountName: logQueryStorageAccountModule.outputs.storageAccountName
     tags: tags
   }
 }
@@ -487,7 +488,6 @@ output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 // Update delegation of "apps" subnet
 
 // NOT COVERED HERE
-// * STORAGE ACCOUNT FOR SAVED QUERIES IN LAW
 // * SOME RBAC
 // * CONTAINER IMAGE DEPLOYMENT
 // * AUDITING / DIAGNOSTIC SETTINGS

@@ -28,11 +28,18 @@ param vNetCidr int
 @minValue(27)
 param subnetCidr int
 
+// TODO: Enable linters once param values are used
+#disable-next-line no-unused-params
+param appContainerImageName string
+#disable-next-line no-unused-params
+param apiContainerImageName string
+
 // Optional parameters
 param dbAadGroupObjectId string = ''
 param dbAadGroupName string = ''
 param deployBastion bool = false
 param deployDefaultSubnet bool = false
+param deployComputeRg bool = false
 param tags object = {}
 param sequence int = 1
 param namingConvention string = '{wloadname}-{env}-{rtype}-{loc}-{seq}'
@@ -78,6 +85,12 @@ resource dataRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 
 resource securityRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: replace(namingStructure, '{rtype}', 'rg-security')
+  location: location
+  tags: tags
+}
+
+resource computeRg 'Microsoft.Resources/resourceGroups@2022-09-01' = if (deployComputeRg) {
+  name: replace(namingStructure, '{rtype}', 'rg-compute')
   location: location
   tags: tags
 }
@@ -258,21 +271,33 @@ module keyVaultModule 'modules/keyVault.bicep' = {
 
 // Create encryption keys for CR, ACI, PG
 // Must create new keys each time because key expiration dates can't be updated with Bicep/ARM
-var keyNameUniqueSuffix = uniqueString(keyNameRandomInit)
-var keyNames = [
-  'postgres-${keyNameUniqueSuffix}'
-  'cr-${keyNameUniqueSuffix}'
-  'st-${keyNameUniqueSuffix}'
-]
+// var keyNames = [
+//   'postgres-${keyNameUniqueSuffix}'
+//   'cr-${keyNameUniqueSuffix}'
+//   'st-${keyNameUniqueSuffix}'
+// ]
+var keyNames = {
+  postgres: {
+    name: 'postgres'
+  }
+  cr: {
+    name: 'cr'
+  }
+  st: {
+    name: 'st'
+  }
+}
 
-module keyVaultKeysModule 'modules/keyVault-key.bicep' = [for keyName in keyNames: {
-  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-key-${keyName}'), 64)
+module keyVaultKeyWrapperModule 'modules/keyVault-keyWrapper.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-keywrap'), 64)
   scope: securityRg
   params: {
-    keyName: keyName
+    deploymentNameStructure: deploymentNameStructure
+    keyNames: keyNames
     keyVaultName: keyVaultModule.outputs.keyVaultName
+    keyNameRandomInit: keyNameRandomInit
   }
-}]
+}
 
 // Assign RBAC for UAMI to KV
 // * Key Vault Crypto User
@@ -307,7 +332,7 @@ module crModule 'modules/cr.bicep' = {
     location: location
     crName: crShortNameModule.outputs.shortName
     // CR will autorotate to use the latest key version
-    keyUri: keyVaultKeysModule[1].outputs.keyUriNoVersion
+    keyUri: keyVaultKeyWrapperModule.outputs.createdKeys.cr.uriWithoutVersion
     namingStructure: namingStructure
     privateDnsZoneId: corePrivateDnsZonesModule[0].outputs.zoneId
     privateEndpointResourceGroupName: networkingRg.name
@@ -338,7 +363,8 @@ module postgresqlModule 'modules/postgresql.bicep' = {
     aadAdminGroupName: dbAadGroupName
     aadAdminGroupObjectId: dbAadGroupObjectId
 
-    customerEncryptionKeyUri: keyVaultKeysModule[0].outputs.keyUri
+    // PostgreSQL Flexible Server requires the version number with the key (not auto-rotate)
+    customerEncryptionKeyUri: keyVaultKeyWrapperModule.outputs.createdKeys.postgres.uriWithVersion
     tags: tags
   }
   dependsOn: [
@@ -370,7 +396,7 @@ module appGwModule 'modules/appGw.bicep' = {
   }
 }
 
-output keyVaultKeysUniqueNameSuffix string = keyNameUniqueSuffix
+output keyVaultKeysUniqueNameSuffix string = keyVaultKeyWrapperModule.outputs.keyNameUniqueSuffix
 
 // Add Storage account with CMK with public access enabled
 module publicStorageAccountNameModule 'common-modules/shortname.bicep' = {
@@ -395,7 +421,7 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
     blobContainerName: '$web'
     storageAccountName: publicStorageAccountNameModule.outputs.shortName
     keyVaultUrl: keyVaultModule.outputs.keyVaultUrl
-    keyName: keyVaultKeysModule[2].outputs.keyName
+    keyName: keyVaultKeyWrapperModule.outputs.createdKeys.st.name
     uamiId: uamiModule.outputs.id
     tags: tags
   }
@@ -409,7 +435,37 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
 output publicStorageAccountName string = publicStorageAccountNameModule.outputs.shortName
 output publicStorageAccountResourceGroupName string = dataRg.name
 
-// TODO: Add storage account with CMK for saved queries in LA
+// Create a storage account to save Log Analytics queries
+module logQueryStorageAccountNameModule 'common-modules/shortname.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'st-log-name'), 64)
+  scope: securityRg
+  params: {
+    location: location
+    environment: environment
+    namingConvention: namingConvention
+    resourceType: 'st'
+    sequence: sequence
+    // Hyphen added here for clarity, but it will be removed by the module
+    workloadName: '${workloadName}-log'
+  }
+}
+
+module logQueryStorageAccountModule 'modules/storageAccount.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'st-log'), 64)
+  scope: securityRg
+  params: {
+    location: location
+    tags: tags
+    blobContainerName: 'saved-queries'
+    keyVaultUrl: keyVaultModule.outputs.keyVaultUrl
+    keyName: keyVaultKeyWrapperModule.outputs.createdKeys.st.name
+    storageAccountName: logQueryStorageAccountNameModule.outputs.shortName
+    uamiId: uamiModule.outputs.id
+  }
+  dependsOn: [
+    uamiKeyVaultRbacModule
+  ]
+}
 
 // Add Log Analytics workspace
 module logModule 'modules/log.bicep' = {
@@ -418,12 +474,14 @@ module logModule 'modules/log.bicep' = {
   params: {
     location: location
     namingStructure: namingStructure
+    // TODO: Reference storage account for saved queries
     tags: tags
   }
 }
 
+output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
+
 // TODO: Deploy App Service
-// If so:
 // Add App Insights?
 // Add Key Vault Secrets for database password, etc.
 // Update delegation of "apps" subnet

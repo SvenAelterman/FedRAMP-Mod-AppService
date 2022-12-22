@@ -36,10 +36,13 @@ Param(
 	[int]$VNetCidr,
 	[Parameter(Mandatory = $true)]
 	[int]$SubnetCidr,
-	[PSCustomObject]$Tags
+	[PSCustomObject]$Tags = @{},
+	[string]$ApiContainerImageName,
+	[string]$AppContainerImageName,
+	[bool]$DeployComputeRg = $false
 )
 
-$TemplateParameters = @{
+[PSCustomObject]$TemplateParameters = @{
 	# REQUIRED
 	location                     = $Location
 	environment                  = $Environment
@@ -54,10 +57,13 @@ $TemplateParameters = @{
 	vNetAddressSpace             = $VNetAddressSpace
 	vNetCidr                     = $VNetCidr
 	subnetCidr                   = $SubnetCidr
+	appContainerImageName        = $AppContainerImageName
+	apiContainerImageName        = $ApiContainerImageName
 
 	# OPTIONAL
 	deployBastion                = $DeployBastion
 	deployDefaultSubnet          = $DeployDefaultSubnet
+	deployComputeRg              = $DeployComputeRg
 	sequence                     = $Sequence
 	namingConvention             = $NamingConvention
 }

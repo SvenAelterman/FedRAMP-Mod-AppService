@@ -1,5 +1,6 @@
-param keyName string
+param keyNames object
 param keyVaultName string
+param keyNameUniqueSuffix string
 
 param keyValidityPeriod string = 'P2Y'
 @description('The time period before key expiration to send a notification of expiration.')
@@ -16,8 +17,11 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: keyVaultName
 }
 
-resource newKey 'Microsoft.KeyVault/vaults/keys@2022-07-01' = {
-  name: keyName
+// This sorts alphabetically
+var keyNamesArray = items(keyNames)
+
+resource newKey 'Microsoft.KeyVault/vaults/keys@2022-07-01' = [for keyName in keyNamesArray: {
+  name: '${keyName.value.name}-${keyNameUniqueSuffix}'
   parent: keyVault
   properties: {
     attributes: {
@@ -54,8 +58,17 @@ resource newKey 'Microsoft.KeyVault/vaults/keys@2022-07-01' = {
       ]
     }
   }
-}
+}]
 
-output keyUri string = newKey.properties.keyUriWithVersion
-output keyUriNoVersion string = newKey.properties.keyUri
-output keyName string = newKey.name
+resource keyRes 'Microsoft.KeyVault/vaults/keys@2022-07-01' existing = [for keyName in keyNamesArray: {
+  name: '${keyName.value.name}-${keyNameUniqueSuffix}'
+  parent: keyVault
+}]
+
+output actualKeys array = [for i in range(0, length(keyNamesArray)): {
+  '${keyNamesArray[i].key}': {
+    name: keyRes[i].name
+    uriWithVersion: keyRes[i].properties.keyUriWithVersion
+    uriWithoutVersion: keyRes[i].properties.keyUri
+  }
+}]

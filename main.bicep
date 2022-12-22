@@ -6,9 +6,9 @@ targetScope = 'subscription'
 ])
 param location string
 @allowed([
-  'test'
-  'demo'
-  'prod'
+  'TEST'
+  'DEMO'
+  'PROD'
 ])
 param environment string
 param workloadName string
@@ -49,38 +49,44 @@ var deploymentNameStructure = '${workloadName}-${environment}-{rtype}-${deployme
 // Naming structure only needs the resource type ({rtype}) replaced
 var thisNamingStructure = replace(replace(replace(namingConvention, '{env}', environment), '{loc}', location), '{seq}', sequenceFormatted)
 var namingStructure = replace(thisNamingStructure, '{wloadname}', workloadName)
-var rgNamingStructure = replace(thisNamingStructure, '{rtype}', 'rg')
+//var rgNamingStructure = replace(thisNamingStructure, '{rtype}', 'rg')
 
 // Create resource groups
 resource networkingRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-networking')
+  name: replace(namingStructure, '{rtype}', 'rg-networking')
   location: location
+  tags: tags
 }
 
 resource containerRegRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-containerregistry')
+  name: replace(namingStructure, '{rtype}', 'rg-containerregistry')
   location: location
+  tags: tags
 }
 
 resource appsRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-apps')
+  name: replace(namingStructure, '{rtype}', 'rg-apps')
   location: location
+  tags: tags
 }
 
-resource databaseRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-database')
+resource dataRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: replace(namingStructure, '{rtype}', 'rg-data')
   location: location
+  tags: tags
 }
 
 resource securityRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-security')
+  name: replace(namingStructure, '{rtype}', 'rg-security')
   location: location
+  tags: tags
 }
 
-resource storageRg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
-  name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-storage')
-  location: location
-}
+// resource storageRg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+//   name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-storage')
+//   location: location
+//   tags: tags
+// }
 
 resource coreDnsZoneRg 'Microsoft.Resources/resourceGroups@2022-09-01' existing = {
   name: coreDnsZoneResourceGroupName
@@ -157,7 +163,7 @@ module networkModule 'modules/network.bicep' = {
 // Create a valid name for the PostgreSQL flexible server
 module postgresqlShortNameModule 'common-modules/shortname.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'pg-name'), 64)
-  scope: databaseRg
+  scope: dataRg
   params: {
     location: location
     environment: environment
@@ -319,7 +325,7 @@ module crModule 'modules/cr.bicep' = {
 // Deploy PG flexible server
 module postgresqlModule 'modules/postgresql.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'postgresql'), 64)
-  scope: databaseRg
+  scope: dataRg
   params: {
     location: location
     dbAdminPassword: dbAdminPassword
@@ -371,7 +377,7 @@ output keyVaultKeysUniqueNameSuffix string = keyNameUniqueSuffix
 // TODO: Add Storage account with CMK with public access enabled
 module publicStorageAccountNameModule 'common-modules/shortname.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'st-pub-name'), 64)
-  scope: storageRg
+  scope: dataRg
   params: {
     location: location
     environment: environment
@@ -385,7 +391,7 @@ module publicStorageAccountNameModule 'common-modules/shortname.bicep' = {
 
 module publicStorageAccountModule 'modules/storageAccount.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'st-pub'), 64)
-  scope: storageRg
+  scope: dataRg
   params: {
     location: location
     blobContainerName: '$web'
@@ -403,7 +409,7 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
 // TODO: CDN for custom domain for storage account
 
 output publicStorageAccountName string = publicStorageAccountNameModule.outputs.shortName
-output publicStorageAccountResourceGroupName string = storageRg.name
+output publicStorageAccountResourceGroupName string = dataRg.name
 
 // TODO: Add storage account with CMK for saved queries in LA
 
@@ -418,17 +424,14 @@ module logModule 'modules/log.bicep' = {
   }
 }
 
-// TODO: Consider App Service instead of Container Instances
+// TODO: Deploy App Service instead of Container Instances
 // If so:
 // Add App Insights?
 // Add Key Vault Secrets for database password, etc.
 // Update delegation of "apps" subnet
 
-// TODO: Consider deploying database and public storage account in the same "data" RG
-
 // NOT COVERED HERE
-// * LOG ANALYTICS WORKSPACE (CREATE DEDICATED CLUSTER?)
-// * + STORAGE ACCOUNT FOR SAVED QUERIES
+// * STORAGE ACCOUNT FOR SAVED QUERIES IN LAW
 // * SOME RBAC
 // * CONTAINER IMAGE DEPLOYMENT
 // * AUDITING / DIAGNOSTIC SETTINGS

@@ -114,8 +114,7 @@ var subnets = {
   apps: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (2 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
-    // TODO: Change to Microsoft.Web/sites if using App Service instead of Container Instances
-    delegation: 'Microsoft.ContainerInstance/containerGroups'
+    delegation: 'Microsoft.Web/serverFarms'
     securityRules: []
   }
   appgw: {
@@ -263,7 +262,6 @@ var keyNameUniqueSuffix = uniqueString(keyNameRandomInit)
 var keyNames = [
   'postgres-${keyNameUniqueSuffix}'
   'cr-${keyNameUniqueSuffix}'
-  'aci-${keyNameUniqueSuffix}'
   'st-${keyNameUniqueSuffix}'
 ]
 
@@ -374,7 +372,7 @@ module appGwModule 'modules/appGw.bicep' = {
 
 output keyVaultKeysUniqueNameSuffix string = keyNameUniqueSuffix
 
-// TODO: Add Storage account with CMK with public access enabled
+// Add Storage account with CMK with public access enabled
 module publicStorageAccountNameModule 'common-modules/shortname.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'st-pub-name'), 64)
   scope: dataRg
@@ -397,7 +395,7 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
     blobContainerName: '$web'
     storageAccountName: publicStorageAccountNameModule.outputs.shortName
     keyVaultUrl: keyVaultModule.outputs.keyVaultUrl
-    keyName: keyVaultKeysModule[3].outputs.keyName
+    keyName: keyVaultKeysModule[2].outputs.keyName
     uamiId: uamiModule.outputs.id
     tags: tags
   }
@@ -424,7 +422,7 @@ module logModule 'modules/log.bicep' = {
   }
 }
 
-// TODO: Deploy App Service instead of Container Instances
+// TODO: Deploy App Service
 // If so:
 // Add App Insights?
 // Add Key Vault Secrets for database password, etc.

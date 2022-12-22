@@ -1,6 +1,6 @@
-# Deploying Azure Container Instances to comply with FedRAMP Moderate
+# Deploying Azure App Service for Containers to comply with FedRAMP Moderate
 
-These templates deploy Azure Container Instances, supported by Azure Database for PostgreSQL, Container Registry, and Key Vault, in a manner compliant with the Azure built-in FedRAMP Moderate policy.
+These templates deploy App Service, supported by Azure Database for PostgreSQL, Container Registry, and Key Vault, in a manner compliant with the Azure built-in FedRAMP Moderate policy.
 
 ## Usage
 

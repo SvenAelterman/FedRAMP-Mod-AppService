@@ -411,7 +411,6 @@ module keyVaultSecretsModule 'modules/keyVault/keyVault-secrets.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'kv-secrets'), 64)
   scope: securityRg
   params: {
-    // TODO: Key Vault secrets must have an expiration date
     keyVaultName: keyVaultModule.outputs.keyVaultName
     secrets: kvSecrets
   }
@@ -425,10 +424,10 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
     location: location
     apiContainerImageName: apiContainerImageName
     appContainerImageName: appContainerImageName
-    crName: crShortNameModule.outputs.shortName // crModule.outputs.crName
+    crName: crModule.outputs.crName
     crResourceGroupName: containerRegRg.name
     databaseName: 'reload'
-    dbFqdn: 'test' //postgresqlModule.outputs.dbFqdn
+    dbFqdn: postgresqlModule.outputs.dbFqdn
     dbPasswordSecretName: kvSecrets.dbAppSvcPassword.name
     dbUserNameSecretName: kvSecrets.dbAppSvcLogin.name
     deploymentNameStructure: deploymentNameStructure
@@ -536,6 +535,7 @@ module logModule 'modules/log.bicep' = {
   params: {
     location: location
     namingStructure: namingStructure
+    // TODO: This does not resolve the FedRAMP Moderate policy violation
     savedQueryStorageAccountName: logQueryStorageAccountModule.outputs.storageAccountName
     tags: tags
   }
@@ -543,7 +543,7 @@ module logModule 'modules/log.bicep' = {
 
 output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 
-// TODO: Output HOSTS information
+// LATER: Output HOSTS information
 
 // TODO: Add App Insights?
 

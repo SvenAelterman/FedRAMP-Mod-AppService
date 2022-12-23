@@ -41,7 +41,7 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
       logsDirectorySizeLimit: 35
       httpLoggingEnabled: true
 
-      // LATER: Pull from secret values and regular values arrays?
+      // TODO: Pull from secret values and regular values arrays?
       appSettings: [
         {
           name: 'DOCKER_REGISTRY_SERVER_URL'

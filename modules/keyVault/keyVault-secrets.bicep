@@ -1,45 +1,19 @@
 param keyVaultName string
 
-param dbAdminPasswordSecretName string
-param dbAdminUserNameSecretName string
-param craftSecurityKeySecretName string
 @secure()
-param dbAdminPassword string
-@secure()
-param dbAdminUserName string
-@secure()
-param craftSecurityKey string
+param secrets object
 
-// @secure()
-// param secrets object
-
-resource keyVault 'Microsoft.KeyVault/vaults@2021-11-01-preview' existing = {
+resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: keyVaultName
 }
 
-resource dbPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2021-11-01-preview' = {
-  name: dbAdminPasswordSecretName
-  parent: keyVault
-  properties: {
-    contentType: 'MySQL database administrator password'
-    value: dbAdminPassword
-  }
-}
+var secretsArray = items(secrets)
 
-resource dbUserNameSecret 'Microsoft.KeyVault/vaults/secrets@2021-11-01-preview' = {
-  name: dbAdminUserNameSecretName
+resource secret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = [for secret in secretsArray: {
+  name: secret.value.name
   parent: keyVault
   properties: {
-    contentType: 'MySQL database administrator user name'
-    value: dbAdminUserName
+    contentType: secret.value.description
+    value: secret.value.value
   }
-}
-
-resource craftSecurityKeySecret 'Microsoft.KeyVault/vaults/secrets@2021-11-01-preview' = {
-  name: craftSecurityKeySecretName
-  parent: keyVault
-  properties: {
-    contentType: 'Craft CMS instance security key'
-    value: craftSecurityKey
-  }
-}
+}]

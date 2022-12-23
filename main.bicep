@@ -13,9 +13,17 @@ param location string
 param environment string
 param workloadName string
 
+@allowed([
+  '14'
+])
 param postgresqlVersion string
 @secure()
 param dbAdminPassword string
+@secure()
+param dbAppSvcPassword string
+param dbAppSvcLogin string
+@secure()
+param emailToken string
 
 @minValue(0)
 @maxValue(128)
@@ -28,10 +36,7 @@ param vNetCidr int
 @minValue(27)
 param subnetCidr int
 
-// TODO: Enable linters once param values are used
-#disable-next-line no-unused-params
 param appContainerImageName string
-#disable-next-line no-unused-params
 param apiContainerImageName string
 
 // Optional parameters
@@ -56,7 +61,6 @@ var deploymentNameStructure = '${workloadName}-${environment}-{rtype}-${deployme
 // Naming structure only needs the resource type ({rtype}) replaced
 var thisNamingStructure = replace(replace(replace(namingConvention, '{env}', environment), '{loc}', location), '{seq}', sequenceFormatted)
 var namingStructure = replace(thisNamingStructure, '{wloadname}', workloadName)
-//var rgNamingStructure = replace(thisNamingStructure, '{rtype}', 'rg')
 
 // Create resource groups
 resource networkingRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -294,15 +298,20 @@ module keyVaultKeyWrapperModule 'modules/keyVault/keyVault-keyWrapper.bicep' = {
   }
 }
 
+module rolesModule 'common-modules/roles.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'roles-main'), 64)
+  scope: subscription()
+}
+
 // Assign RBAC for UAMI to KV
 // * Key Vault Crypto User
-module uamiKeyVaultRbacModule 'modules/keyVault/keyVault-rbac.bicep' = {
+module uamiKeyVaultRbacModule 'modules/roleAssignments/roleAssignment-kv.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'kv-rbac-uami'), 64)
   scope: securityRg
   params: {
-    keyVaultName: keyVaultModule.outputs.keyVaultName
+    kvName: keyVaultModule.outputs.keyVaultName
     principalId: uamiModule.outputs.principalId
-    roleName: 'Key Vault Crypto User'
+    roleDefinitionId: rolesModule.outputs.roles['Key Vault Crypto User']
   }
 }
 
@@ -379,6 +388,61 @@ module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
   }
 }
 
+// Create Key Vault secrets for app settings
+var kvSecrets = {
+  dbAppSvcLogin: {
+    name: 'AppSvc-DbLogin'
+    description: 'Database login name used by App Service'
+    value: dbAppSvcLogin
+  }
+  dbAppSvcPassword: {
+    name: 'AppSvc-DbPassword'
+    description: 'Database password used by App Service'
+    value: dbAppSvcPassword
+  }
+  emailToken: {
+    name: 'AppSvc-EmailToken'
+    description: 'Email token used by App Service for authentication to email service'
+    value: emailToken
+  }
+}
+
+module keyVaultSecretsModule 'modules/keyVault/keyVault-secrets.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kv-secrets'), 64)
+  scope: securityRg
+  params: {
+    // TODO: Key Vault secrets must have an expiration date
+    keyVaultName: keyVaultModule.outputs.keyVaultName
+    secrets: kvSecrets
+  }
+}
+
+// Deploy App Service
+module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'appSvc'), 64)
+  scope: appsRg
+  params: {
+    location: location
+    apiContainerImageName: apiContainerImageName
+    appContainerImageName: appContainerImageName
+    crName: crShortNameModule.outputs.shortName // crModule.outputs.crName
+    crResourceGroupName: containerRegRg.name
+    databaseName: 'reload'
+    dbFqdn: 'test' //postgresqlModule.outputs.dbFqdn
+    dbPasswordSecretName: kvSecrets.dbAppSvcPassword.name
+    dbUserNameSecretName: kvSecrets.dbAppSvcLogin.name
+    deploymentNameStructure: deploymentNameStructure
+    emailTokenSecretName: kvSecrets.emailToken.name
+    keyVaultName: keyVaultModule.outputs.keyVaultName
+    kvResourceGroupName: securityRg.name
+    namingStructure: namingStructure
+    subnetId: networkModule.outputs.createdSubnets.apps.id
+  }
+  dependsOn: [
+    keyVaultSecretsModule
+  ]
+}
+
 // Deploy APP GW with an empty backend pool
 module appGwModule 'modules/appGw.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'appgw'), 64)
@@ -390,6 +454,8 @@ module appGwModule 'modules/appGw.bicep' = {
     uamiId: uamiModule.outputs.id
   }
 }
+
+// LATER: Set CURRENT_URL app setting
 
 output keyVaultKeysUniqueNameSuffix string = keyVaultKeyWrapperModule.outputs.keyNameUniqueSuffix
 
@@ -426,7 +492,7 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
   ]
 }
 
-// TODO: CDN for custom domain for storage account
+// LATER: CDN for custom domain for storage account
 
 output publicStorageAccountName string = publicStorageAccountNameModule.outputs.shortName
 output publicStorageAccountResourceGroupName string = dataRg.name
@@ -479,10 +545,7 @@ output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 
 // TODO: Output HOSTS information
 
-// TODO: Deploy App Service
-// Add App Insights?
-// Add Key Vault Secrets for database password, etc.
-// Update delegation of "apps" subnet
+// TODO: Add App Insights?
 
 // NOT COVERED HERE
 // * SOME RBAC

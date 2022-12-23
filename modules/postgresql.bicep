@@ -60,3 +60,5 @@ resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2022-03-08-pr
 
   tags: tags
 }
+
+output dbFqdn string = flexibleServer.properties.fullyQualifiedDomainName

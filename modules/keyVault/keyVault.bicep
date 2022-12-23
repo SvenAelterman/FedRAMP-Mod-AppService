@@ -21,9 +21,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     enableSoftDelete: true
     // 90 days is required for PostgreSQL CMK
     softDeleteRetentionInDays: 90
-    // TODO: To be reviewed for ACI?
     enableRbacAuthorization: true
-    //enabledForTemplateDeployment: true
     tenantId: subscription().tenantId
     networkAcls: {
       bypass: 'AzureServices'

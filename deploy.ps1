@@ -19,6 +19,12 @@ Param(
 	[string]$PostgreSQLVersion,
 	[Parameter(Mandatory = $true)]
 	[securestring]$DbAdminPassword,
+	[Parameter(Mandatory = $true)]
+	[string]$DbAppSvcLogin,
+	[Parameter(Mandatory = $true)]
+	[securestring]$DbAppSvcPassword,
+	[Parameter(Mandatory = $true)]
+	[securestring]$EmailToken,
 	[string]$DbAadGroupObjectId,
 	[string]$DbAadGroupName,
 	[Parameter(Mandatory = $true)]
@@ -49,6 +55,9 @@ Param(
 	workloadName                 = $WorkloadName
 	postgresqlVersion            = $PostgreSQLVersion
 	dbAdminPassword              = $DbAdminPassword
+	dbAppSvcPassword             = $DbAppSvcPassword
+	emailToken                   = $EmailToken
+	dbAppsvcLogin                = $DbAppSvcLogin
 	dbAadGroupObjectId           = $DbAadGroupObjectId
 	dbAadGroupName               = $DbAadGroupName
 	coreSubscriptionId           = $CoreSubscriptionId

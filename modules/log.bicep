@@ -7,6 +7,9 @@ param tags object = {}
 resource logAnalyticsWS 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: replace(namingStructure, '{rtype}', 'log')
   location: location
+  properties: {
+    forceCmkForQuery: true
+  }
   tags: tags
 }
 

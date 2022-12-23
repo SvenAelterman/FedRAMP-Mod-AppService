@@ -555,3 +555,4 @@ output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 // * TLS FOR APP GW
 // * ROUTE TABLE FOR FW
 // * KEY ROTATION FOR POSTGRESQL
+// * POLICY EXEMPTIONS FOR WEB STORAGE ACCOUNT

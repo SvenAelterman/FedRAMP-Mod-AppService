@@ -255,7 +255,7 @@ module keyVaultShortNameModule 'common-modules/shortname.bicep' = {
   }
 }
 
-module keyVaultModule 'modules/keyVault.bicep' = {
+module keyVaultModule 'modules/keyVault/keyVault.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'kv'), 64)
   scope: securityRg
   params: {
@@ -269,13 +269,8 @@ module keyVaultModule 'modules/keyVault.bicep' = {
   }
 }
 
-// Create encryption keys for CR, ACI, PG
+// Create encryption keys for Container Registry, PostgreSQL, and storage accounts
 // Must create new keys each time because key expiration dates can't be updated with Bicep/ARM
-// var keyNames = [
-//   'postgres-${keyNameUniqueSuffix}'
-//   'cr-${keyNameUniqueSuffix}'
-//   'st-${keyNameUniqueSuffix}'
-// ]
 var keyNames = {
   postgres: {
     name: 'postgres'
@@ -288,7 +283,7 @@ var keyNames = {
   }
 }
 
-module keyVaultKeyWrapperModule 'modules/keyVault-keyWrapper.bicep' = {
+module keyVaultKeyWrapperModule 'modules/keyVault/keyVault-keyWrapper.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'kv-keywrap'), 64)
   scope: securityRg
   params: {
@@ -301,7 +296,7 @@ module keyVaultKeyWrapperModule 'modules/keyVault-keyWrapper.bicep' = {
 
 // Assign RBAC for UAMI to KV
 // * Key Vault Crypto User
-module uamiKeyVaultRbacModule 'modules/keyVault-rbac.bicep' = {
+module uamiKeyVaultRbacModule 'modules/keyVault/keyVault-rbac.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'kv-rbac-uami'), 64)
   scope: securityRg
   params: {
@@ -481,6 +476,8 @@ module logModule 'modules/log.bicep' = {
 }
 
 output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
+
+// TODO: Output HOSTS information
 
 // TODO: Deploy App Service
 // Add App Insights?

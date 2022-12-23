@@ -6,7 +6,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: keyVaultName
 }
 
-module rolesModule '../common-modules/roles.bicep' = {
+module rolesModule '../../common-modules/roles.bicep' = {
   name: 'kv-roles-${uniqueString(principalId, roleName, keyVaultName)}'
 }
 

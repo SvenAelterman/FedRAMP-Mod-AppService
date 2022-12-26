@@ -487,8 +487,7 @@ output appsRgName string = appsRg.name
 output crName string = crModule.outputs.crName
 output crResourceGroupName string = containerRegRg.name
 
-// Deploy APP GW with an empty backend pool
-// TODO: Update module to reference app services as backends
+// Deploy APP GW with App Services backends
 module appGwModule 'modules/appGw.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'appgw'), 64)
   scope: networkingRg
@@ -513,8 +512,6 @@ module appGwModule 'modules/appGw.bicep' = {
     tags: tags
   }
 }
-
-// LATER: Set CURRENT_URL app setting?
 
 // LATER: App Service IP restrictions
 

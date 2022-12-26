@@ -146,10 +146,13 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	$ApiWebHookName = $NamingConvention.Replace('{rtype}', 'wh-api').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('-', '').Replace('{wloadname}', $WorkloadName)
 	$WebWebHookName = $NamingConvention.Replace('{rtype}', 'wh-web').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('-', '').Replace('{wloadname}', $WorkloadName)
 	
-	az acr webhook create --name $ApiWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $ApiCdUrl --scope $ApiContainerImageName.Substring(0, $ApiContainerImageName.IndexOf(':'))
-	az acr webhook create --name $WebWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $WebCdUrl --scope $AppContainerImageName.Substring(0, $AppContainerImageName.IndexOf(':'))
+	$ApiResult = az acr webhook create --name $ApiWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $ApiCdUrl --scope $ApiContainerImageName.Substring(0, $ApiContainerImageName.IndexOf(':'))
+	$WebResult = az acr webhook create --name $WebWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $WebCdUrl --scope $AppContainerImageName.Substring(0, $AppContainerImageName.IndexOf(':'))
 
-	Write-Warning "`nManual steps: peer the virtual network to the hub"
+	Write-Verbose $ApiResult
+	Write-Verbose $WebResult
+
+	Write-Warning "`nManual steps: peer the virtual network to the hub`n"
 
 	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
 	Write-Warning "`nBe sure to capture the Key Vault keys' unique suffix: '$KeysSuffix'"

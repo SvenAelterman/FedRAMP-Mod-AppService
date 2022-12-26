@@ -67,6 +67,4 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2022-03-0
   parent: flexibleServer
 }
 
-// TODO: Create login?
-
 output dbFqdn string = flexibleServer.properties.fullyQualifiedDomainName

@@ -7,6 +7,7 @@ param privateDnsZoneId string
 param dbAdminPassword string
 param uamiId string
 
+param databaseName string = ''
 param customerEncryptionKeyUri string = ''
 
 param aadAdminGroupObjectId string = ''
@@ -61,7 +62,10 @@ resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2022-03-08-pr
   tags: tags
 }
 
-// TODO: Create new database
+resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2022-03-08-preview' = if (!empty(databaseName)) {
+  name: databaseName
+  parent: flexibleServer
+}
 
 // TODO: Create login?
 

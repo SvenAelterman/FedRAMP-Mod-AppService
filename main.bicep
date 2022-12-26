@@ -373,6 +373,8 @@ module postgresqlModule 'modules/postgresql.bicep' = {
     aadAdminGroupName: dbAadGroupName
     aadAdminGroupObjectId: dbAadGroupObjectId
 
+    databaseName: databaseName
+
     // PostgreSQL Flexible Server requires the version number with the key (not auto-rotate)
     customerEncryptionKeyUri: keyVaultKeyWrapperModule.outputs.createdKeys.postgres.uriWithVersion
     tags: tags

@@ -31,6 +31,12 @@ param emailToken string
 param apiAppSettings object
 param webAppSettings object
 
+param appContainerImageName string
+param apiContainerImageName string
+
+param apiHostName string
+param webHostName string
+
 @minValue(0)
 @maxValue(128)
 param vNetAddressSpaceOctet4Min int
@@ -41,9 +47,6 @@ param vNetCidr int
 @maxValue(28)
 @minValue(27)
 param subnetCidr int
-
-param appContainerImageName string
-param apiContainerImageName string
 
 // Optional parameters
 param dbAadGroupObjectId string = ''
@@ -494,6 +497,20 @@ module appGwModule 'modules/appGw.bicep' = {
     namingStructure: namingStructure
     subnetId: networkModule.outputs.createdSubnets.appgw.id
     uamiId: uamiModule.outputs.id
+    appsRgName: appsRg.name
+    backendAppSvcs: [
+      {
+        name: 'api'
+        appSvcName: appSvcModule.outputs.apiAppSvcName
+        hostName: apiHostName
+      }
+      {
+        name: 'web'
+        appSvcName: appSvcModule.outputs.webAppSvcName
+        hostName: webHostName
+      }
+    ]
+    tags: tags
   }
 }
 
@@ -580,7 +597,6 @@ module logModule 'modules/log.bicep' = {
   params: {
     location: location
     namingStructure: namingStructure
-    // TODO: This does not resolve the FedRAMP Moderate policy violation
     savedQueryStorageAccountName: logQueryStorageAccountModule.outputs.storageAccountName
     tags: tags
   }

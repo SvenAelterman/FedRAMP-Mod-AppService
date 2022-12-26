@@ -3,6 +3,23 @@ param namingStructure string
 param uamiId string
 param subnetId string
 
+@description('Array of custom objects: { name: "for use in resource names", appSvcName: "", hostName: "URL" }')
+param backendAppSvcs array
+param appsRgName string
+
+param tags object = {}
+
+// Retrieve existing App Service instances
+resource appsRg 'Microsoft.Resources/resourceGroups@2022-09-01' existing = {
+  name: appsRgName
+  scope: subscription()
+}
+
+resource appSvcsRes 'Microsoft.Web/sites@2022-03-01' existing = [for appSvc in backendAppSvcs: {
+  name: appSvc.appSvcName
+  scope: appsRg
+}]
+
 // Create a new public IP address for the App GW frontend
 resource pip 'Microsoft.Network/publicIPAddresses@2022-05-01' = {
   name: replace(namingStructure, '{rtype}', 'pip-appgw')
@@ -14,10 +31,11 @@ resource pip 'Microsoft.Network/publicIPAddresses@2022-05-01' = {
   sku: {
     name: 'Standard'
   }
+  tags: tags
 }
 
 var appGwName = replace(namingStructure, '{rtype}', 'appgw')
-var bepName = 'Empty'
+var httpSettingsName = 'httpSettings443'
 
 resource appGw 'Microsoft.Network/applicationGateways@2022-05-01' = {
   name: appGwName
@@ -77,76 +95,57 @@ resource appGw 'Microsoft.Network/applicationGateways@2022-05-01' = {
         }
       }
     ]
-    backendAddressPools: [
-      {
-        name: bepName
-        properties: {
-          backendAddresses: [
-          ]
-        }
+    backendAddressPools: [for (appSvc, i) in backendAppSvcs: {
+      name: 'be-${appSvc.name}'
+      properties: {
+        backendAddresses: [
+          {
+            fqdn: appSvcsRes[i].properties.enabledHostNames[0]
+          }
+        ]
       }
-    ]
+    }]
     backendHttpSettingsCollection: [
       {
-        name: 'settings'
+        name: httpSettingsName
         properties: {
           port: 443
           protocol: 'Https'
-          pickHostNameFromBackendAddress: false
+          pickHostNameFromBackendAddress: true
         }
       }
     ]
-    httpListeners: [
-      {
-        name: 'l-http'
-        properties: {
-          frontendIPConfiguration: {
-            id: resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', appGwName, 'appGwPublicFrontendIp')
-          }
-          frontendPort: {
-            id: resourceId('Microsoft.Network/applicationGateways/frontendPorts', appGwName, 'Public80')
-          }
-          protocol: 'Http'
+    httpListeners: [for (appSvc, i) in backendAppSvcs: {
+      name: 'l-http-${appSvc.name}'
+      properties: {
+        frontendIPConfiguration: {
+          id: resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', appGwName, 'appGwPublicFrontendIp')
+        }
+        frontendPort: {
+          id: resourceId('Microsoft.Network/applicationGateways/frontendPorts', appGwName, 'Public80')
+        }
+        hostName: appSvc.hostName
+        protocol: 'Http'
+      }
+    }]
+    requestRoutingRules: [for (appSvc, i) in backendAppSvcs: {
+      name: 'rr-${appSvc.name}'
+      properties: {
+        ruleType: 'Basic'
+        priority: 100 + i
+        httpListener: {
+          id: resourceId('Microsoft.Network/applicationGateways/httpListeners', appGwName, 'l-http-${appSvc.name}')
+        }
+        backendAddressPool: {
+          id: resourceId('Microsoft.Network/applicationGateways/backendAddressPools', appGwName, 'be-${appSvc.name}')
+        }
+        backendHttpSettings: {
+          id: resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', appGwName, httpSettingsName)
         }
       }
-    ]
-    requestRoutingRules: [
-      {
-        name: 'rr'
-        properties: {
-          ruleType: 'Basic'
-          priority: 100
-          httpListener: {
-            id: resourceId('Microsoft.Network/applicationGateways/httpListeners', appGwName, 'l-http')
-          }
-          backendAddressPool: {
-            id: resourceId('Microsoft.Network/applicationGateways/backendAddressPools', appGwName, bepName)
-          }
-          backendHttpSettings: {
-            id: resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', appGwName, 'settings')
-          }
-        }
-      }
-    ]
-    // probes: [
-    //   {
-    //     name: 'probe1'
-    //     properties: {
-    //       pickHostNameFromBackendHttpSettings: true
-    //       port: 80
-    //       timeout: 30
-    //       interval: 30
-    //       path: '/'
-    //       protocol: 'Http'
-    //       backendHttpSettings: [
-    //         {
-    //           id: resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', appGwName, 'settings')
-    //         }
-    //       ]
-    //     }
-    //   }
-    // ]
+    }]
   }
+  tags: tags
 }
 
 output appGwName string = appGwName

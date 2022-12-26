@@ -11,5 +11,21 @@
 			"destinationAddressPrefix": "*",
 			"destinationPortRange": "65200-65535"
 		}
+	},
+	{
+		"name": "Allow_InternetInbound",
+		"properties": {
+			"direction": "Inbound",
+			"priority": 210,
+			"protocol": "TCP",
+			"access": "Allow",
+			"sourceAddressPrefix": "Internet",
+			"sourcePortRange": "*",
+			"destinationAddressPrefix": "VirtualNetwork",
+			"destinationPortRanges": [
+				"80",
+				"443"
+			]
+		}
 	}
 ]

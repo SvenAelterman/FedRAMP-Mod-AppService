@@ -45,8 +45,14 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[int]$SubnetCidr,
 	[PSCustomObject]$Tags = @{},
+	[Parameter(Mandatory = $true)]
 	[string]$ApiContainerImageName,
+	[Parameter(Mandatory = $true)]
 	[string]$AppContainerImageName,
+	[Parameter(Mandatory = $true)]
+	[string]$WebHostName,
+	[Parameter(Mandatory = $true)]
+	[string]$ApiHostName,
 	[bool]$DeployComputeRg = $false,
 	[PSCustomObject]$ApiAppSettings = @{},
 	[PSCustomObject]$WebAppSettings = @{}
@@ -75,6 +81,8 @@ Set-StrictMode -Version 2
 	appContainerImageName        = $AppContainerImageName
 	apiContainerImageName        = $ApiContainerImageName
 	databaseName                 = $DatabaseName
+	apiHostName                  = $ApiHostName
+	webHostName                  = $WebHostName
 
 	# OPTIONAL
 	deployBastion                = $DeployBastion

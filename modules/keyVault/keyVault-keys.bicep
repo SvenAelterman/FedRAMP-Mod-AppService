@@ -36,6 +36,7 @@ resource newKey 'Microsoft.KeyVault/vaults/keys@2022-07-01' = [for keyName in ke
       }
       lifetimeActions: [
         // Notify (using Event Grid) before key expires
+        // LATER: Set up Event Grid subscription?
         // If the notify period is less than the rotate period, notification shouldn't be sent
         {
           action: {

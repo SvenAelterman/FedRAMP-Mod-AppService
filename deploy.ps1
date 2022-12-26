@@ -20,13 +20,15 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[securestring]$DbAdminPassword,
 	[Parameter(Mandatory = $true)]
-	[string]$DbAppSvcLogin,
+	[securestring]$DbAppSvcLogin,
 	[Parameter(Mandatory = $true)]
 	[securestring]$DbAppSvcPassword,
 	[Parameter(Mandatory = $true)]
 	[securestring]$EmailToken,
 	[string]$DbAadGroupObjectId,
 	[string]$DbAadGroupName,
+	[Parameter(Mandatory = $true)]
+	[string]$DatabaseName,
 	[Parameter(Mandatory = $true)]
 	[string]$TargetSubscription,
 	[Parameter(Mandatory = $true)]
@@ -45,7 +47,9 @@ Param(
 	[PSCustomObject]$Tags = @{},
 	[string]$ApiContainerImageName,
 	[string]$AppContainerImageName,
-	[bool]$DeployComputeRg = $false
+	[bool]$DeployComputeRg = $false,
+	[PSCustomObject]$ApiAppSettings = @{},
+	[PSCustomObject]$WebAppSettings = @{}
 )
 
 [PSCustomObject]$TemplateParameters = @{
@@ -68,11 +72,14 @@ Param(
 	subnetCidr                   = $SubnetCidr
 	appContainerImageName        = $AppContainerImageName
 	apiContainerImageName        = $ApiContainerImageName
+	databaseName                 = $DatabaseName
 
 	# OPTIONAL
 	deployBastion                = $DeployBastion
 	deployDefaultSubnet          = $DeployDefaultSubnet
 	deployComputeRg              = $DeployComputeRg
+	apiAppSettings               = $ApiAppSettings
+	webAppSettings               = $WebAppSettings
 	sequence                     = $Sequence
 	namingConvention             = $NamingConvention
 }

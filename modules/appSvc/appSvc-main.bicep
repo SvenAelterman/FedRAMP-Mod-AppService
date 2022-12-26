@@ -4,15 +4,12 @@ param subnetId string
 param crName string
 param appContainerImageName string
 param apiContainerImageName string
-param dbFqdn string
-param databaseName string
 param keyVaultName string
 
 param deploymentNameStructure string
 
-param dbUserNameSecretName string
-param dbPasswordSecretName string
-param emailTokenSecretName string
+param apiAppSettings object
+param webAppSettings object
 
 param crResourceGroupName string
 param kvResourceGroupName string
@@ -40,30 +37,13 @@ resource kv 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   scope: kvRg
 }
 
-// Generate App Service setting values for Key Vault secret references
-module keyVaultRefs '../../common-modules/appSvcKeyVaultRefs.bicep' = {
-  name: 'appSvcKeyVaultRefs'
-  scope: kvRg
-  params: {
-    keyVaultName: keyVaultName
-    secretNames: [
-      dbUserNameSecretName
-      dbPasswordSecretName
-      emailTokenSecretName
-    ]
-  }
-}
-
-var dbUserNameConfigValue = keyVaultRefs.outputs.keyVaultRefs[0]
-var dbPasswordConfigValue = keyVaultRefs.outputs.keyVaultRefs[1]
-var emailTokenConfigValue = keyVaultRefs.outputs.keyVaultRefs[2]
-
 // Create an App Service Plan (the unit of compute and scale)
 module appSvcPlanModule 'appSvcPlan.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'plan'), 64)
   params: {
     location: location
     namingStructure: namingStructure
+    tags: tags
   }
 }
 
@@ -76,16 +56,11 @@ module webAppSvcModule 'appSvc.bicep' = {
     location: location
     tags: tags
     dockerImageAndTag: appContainerImageName
-    databaseName: databaseName
-    dbFqdn: dbFqdn
     subnetId: subnetId
     webAppName: webAppName
-    // LATER: Probably won't need all these
-    dbPasswordConfigValue: dbPasswordConfigValue
-    dbUserNameConfigValue: dbUserNameConfigValue
     crLoginServer: cr.properties.loginServer
     appSvcPlanId: appSvcPlanModule.outputs.id
-    emailTokenConfigValue: emailTokenConfigValue
+    appSettings: webAppSettings
   }
 }
 
@@ -95,15 +70,11 @@ module apiAppSvcModule 'appSvc.bicep' = {
     location: location
     tags: tags
     dockerImageAndTag: apiContainerImageName
-    databaseName: databaseName
-    dbFqdn: dbFqdn
     subnetId: subnetId
     webAppName: apiAppName
-    dbPasswordConfigValue: dbPasswordConfigValue
-    dbUserNameConfigValue: dbUserNameConfigValue
     crLoginServer: cr.properties.loginServer
     appSvcPlanId: appSvcPlanModule.outputs.id
-    emailTokenConfigValue: emailTokenConfigValue
+    appSettings: apiAppSettings
   }
 }
 
@@ -141,6 +112,8 @@ module apiKvRoleAssignmentModule '../roleAssignments/roleAssignment-kv.bicep' = 
     roleDefinitionId: rolesModule.outputs.roles['Key Vault Secrets User']
   }
 }
+
+// LATER: Use an array of container images for creating App Services
 
 output apiAppSvcPrincipalId string = apiAppSvcModule.outputs.principalId
 output webAppSvcPrincipalId string = webAppSvcModule.outputs.principalId

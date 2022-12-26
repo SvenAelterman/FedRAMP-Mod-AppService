@@ -1,20 +1,28 @@
 param webAppName string
 param location string
 param subnetId string
-param dbFqdn string
-param databaseName string
 param dockerImageAndTag string
-param dbUserNameConfigValue string
 param crLoginServer string
-@secure()
-param dbPasswordConfigValue string
-@secure()
-param emailTokenConfigValue string
 param appSvcPlanId string
 
 param tags object
 
+param appSettings object = {}
+
 var linuxFx = 'DOCKER|${crLoginServer}/${dockerImageAndTag}'
+
+var hiddenRelatedTag = {
+  'hidden-related:${appSvcPlanId}': 'empty'
+}
+// Merge the hidden tag with the parameter values
+var actualTags = union(tags, hiddenRelatedTag)
+
+// Create an application setting for the Container Registry URL
+var dockerRegistryServerUrlSetting = {
+  DOCKER_REGISTRY_SERVER_URL: 'https://${crLoginServer}'
+}
+// Merge the setting with the parameter values
+var actualAppSettings = union(appSettings, dockerRegistryServerUrlSetting)
 
 resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
   name: webAppName
@@ -41,68 +49,15 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
       logsDirectorySizeLimit: 35
       httpLoggingEnabled: true
 
-      // TODO: Pull from secret values and regular values arrays?
-      appSettings: [
-        {
-          name: 'DOCKER_REGISTRY_SERVER_URL'
-          value: 'https://${crLoginServer}'
-        }
-        {
-          name: 'NODE_ENV'
-          value: 'localhost'
-        }
-        {
-          name: 'DB_PORT'
-          value: '5432'
-        }
-        {
-          name: 'DB_HOST'
-          value: dbFqdn
-        }
-        {
-          name: 'DB_NAME'
-          value: databaseName
-        }
-        {
-          name: 'DB_USER'
-          value: dbUserNameConfigValue
-        }
-        {
-          name: 'DB_PASS'
-          value: dbPasswordConfigValue
-        }
-        {
-          name: 'PORT'
-          value: '80'
-        }
-        {
-          name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
-          value: 'false'
-        }
-        {
-          name: 'PRIVATE_KEY'
-          value: '../key.pem'
-        }
-        {
-          name: 'CERT'
-          value: '../server.pem'
-        }
-        {
-          name: 'EMAIL_TOKEN'
-          value: emailTokenConfigValue
-        }
-        {
-          name: 'EMAIL_FROM'
-          value: 'support@reload-app.com'
-        }
-        {
-          name: 'CURRENT_URL'
-          value: 'SET ME'
-        }
-      ]
+      // Loop through all provided application settings
+      appSettings: [for setting in items(actualAppSettings): {
+        name: setting.key
+        value: setting.value
+      }]
+
     }
   }
-  tags: tags
+  tags: actualTags
 }
 
 output appSvcName string = appSvc.name

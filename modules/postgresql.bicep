@@ -61,4 +61,8 @@ resource flexibleServer 'Microsoft.DBforPostgreSQL/flexibleServers@2022-03-08-pr
   tags: tags
 }
 
+// TODO: Create new database
+
+// TODO: Create login?
+
 output dbFqdn string = flexibleServer.properties.fullyQualifiedDomainName

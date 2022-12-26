@@ -21,9 +21,15 @@ param postgresqlVersion string
 param dbAdminPassword string
 @secure()
 param dbAppSvcPassword string
+@secure()
 param dbAppSvcLogin string
+param databaseName string
+
 @secure()
 param emailToken string
+
+param apiAppSettings object
+param webAppSettings object
 
 @minValue(0)
 @maxValue(128)
@@ -388,25 +394,25 @@ module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
   }
 }
 
-// Create Key Vault secrets for app settings
+// Define Key Vault secrets for app settings
 var kvSecrets = {
   dbAppSvcLogin: {
-    name: 'AppSvc-DbLogin'
+    name: 'ApiAppSvc-DBUSER'
     description: 'Database login name used by App Service'
     value: dbAppSvcLogin
   }
   dbAppSvcPassword: {
-    name: 'AppSvc-DbPassword'
+    name: 'ApiAppSvc-DBPASS'
     description: 'Database password used by App Service'
     value: dbAppSvcPassword
   }
   emailToken: {
-    name: 'AppSvc-EmailToken'
+    name: 'ApiAppSvc-EMAILTOKEN'
     description: 'Email token used by App Service for authentication to email service'
     value: emailToken
   }
 }
-
+// Create Key Vault secrets for app settings
 module keyVaultSecretsModule 'modules/keyVault/keyVault-secrets.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'kv-secrets'), 64)
   scope: securityRg
@@ -416,7 +422,37 @@ module keyVaultSecretsModule 'modules/keyVault/keyVault-secrets.bicep' = {
   }
 }
 
+// Create a custom object with the app setting names and their secret names
+var apiSecretSettings = {
+  DB_USER: kvSecrets.dbAppSvcLogin.name
+  DB_PASS: kvSecrets.dbAppSvcPassword.name
+  EMAIL_TOKEN: kvSecrets.emailToken.name
+}
+
+// Create Key Vault reference strings for use in App Service settings for each of the secrets
+module keyVaultRefsModule './common-modules/appSvcKeyVaultRefs.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'kvSecretRef'), 64)
+  scope: securityRg
+  params: {
+    keyVaultName: keyVaultModule.outputs.keyVaultName
+    appSettingSecretNames: apiSecretSettings
+  }
+}
+
+// Use the output of the KV secret reference module to create a custom object in the same shape as expected for app settings
+var apiAppKeyVaultRefSettings = reduce(keyVaultRefsModule.outputs.keyVaultRefs, {}, (cur, next) => union(cur, next))
+
+// Manually list additional application settings that couldn't be provided as parameters
+var additionalApiAppSettings = {
+  DB_HOST: postgresqlModule.outputs.dbFqdn
+  DB_NAME: databaseName
+}
+
+// Merge the app settings parameter value with the KV secret references
+var actualApiAppSettings = union(apiAppSettings, apiAppKeyVaultRefSettings, additionalApiAppSettings)
+
 // Deploy App Service
+// This module creates the App Service Plan, two App Services, and necessary RBAC
 module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'appSvc'), 64)
   scope: appsRg
@@ -426,16 +462,14 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
     appContainerImageName: appContainerImageName
     crName: crModule.outputs.crName
     crResourceGroupName: containerRegRg.name
-    databaseName: 'reload'
-    dbFqdn: postgresqlModule.outputs.dbFqdn
-    dbPasswordSecretName: kvSecrets.dbAppSvcPassword.name
-    dbUserNameSecretName: kvSecrets.dbAppSvcLogin.name
     deploymentNameStructure: deploymentNameStructure
-    emailTokenSecretName: kvSecrets.emailToken.name
     keyVaultName: keyVaultModule.outputs.keyVaultName
     kvResourceGroupName: securityRg.name
     namingStructure: namingStructure
     subnetId: networkModule.outputs.createdSubnets.apps.id
+    apiAppSettings: actualApiAppSettings
+    webAppSettings: webAppSettings
+    tags: tags
   }
   dependsOn: [
     keyVaultSecretsModule
@@ -443,6 +477,7 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
 }
 
 // Deploy APP GW with an empty backend pool
+// TODO: Update module to reference app services as backends
 module appGwModule 'modules/appGw.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'appgw'), 64)
   scope: networkingRg
@@ -454,7 +489,7 @@ module appGwModule 'modules/appGw.bicep' = {
   }
 }
 
-// LATER: Set CURRENT_URL app setting
+// LATER: Set CURRENT_URL app setting?
 
 output keyVaultKeysUniqueNameSuffix string = keyVaultKeyWrapperModule.outputs.keyNameUniqueSuffix
 
@@ -546,6 +581,10 @@ output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 // LATER: Output HOSTS information
 
 // TODO: Add App Insights?
+
+// TODO: Private endpoint for log analytics saved query storage account?
+
+// TODO: Enable App Svc logging for FedRAMP compliance
 
 // NOT COVERED HERE
 // * SOME RBAC

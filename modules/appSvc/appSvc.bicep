@@ -35,6 +35,8 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
   properties: {
     serverFarmId: appSvcPlanId
     virtualNetworkSubnetId: subnetId
+    vnetImagePullEnabled: true
+    vnetRouteAllEnabled: true // This is the default value
     httpsOnly: true
     keyVaultReferenceIdentity: 'SystemAssigned'
 
@@ -59,6 +61,8 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
   }
   tags: actualTags
 }
+
+// LATER: Configure health check endpoint
 
 output appSvcName string = appSvc.name
 output principalId string = appSvc.identity.principalId

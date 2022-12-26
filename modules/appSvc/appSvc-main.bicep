@@ -117,3 +117,5 @@ module apiKvRoleAssignmentModule '../roleAssignments/roleAssignment-kv.bicep' = 
 
 output apiAppSvcPrincipalId string = apiAppSvcModule.outputs.principalId
 output webAppSvcPrincipalId string = webAppSvcModule.outputs.principalId
+output apiAppSvcName string = apiAppName
+output webAppSvcName string = webAppName

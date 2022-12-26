@@ -478,6 +478,12 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
   ]
 }
 
+output apiAppSvcName string = appSvcModule.outputs.apiAppSvcName
+output webAppSvcName string = appSvcModule.outputs.webAppSvcName
+output appsRgName string = appsRg.name
+output crName string = crModule.outputs.crName
+output crResourceGroupName string = containerRegRg.name
+
 // Deploy APP GW with an empty backend pool
 // TODO: Update module to reference app services as backends
 module appGwModule 'modules/appGw.bicep' = {
@@ -492,6 +498,8 @@ module appGwModule 'modules/appGw.bicep' = {
 }
 
 // LATER: Set CURRENT_URL app setting?
+
+// LATER: App Service IP restrictions
 
 output keyVaultKeysUniqueNameSuffix string = keyVaultKeyWrapperModule.outputs.keyNameUniqueSuffix
 

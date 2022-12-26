@@ -52,10 +52,12 @@ Param(
 	[PSCustomObject]$WebAppSettings = @{}
 )
 
+Set-StrictMode -Version 2
+
 [PSCustomObject]$TemplateParameters = @{
 	# REQUIRED
 	location                     = $Location
-	environment                  = $Environment
+	environment                  = $Environment.ToUpperInvariant()
 	workloadName                 = $WorkloadName
 	postgresqlVersion            = $PostgreSQLVersion
 	dbAdminPassword              = $DbAdminPassword
@@ -116,6 +118,30 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	$StorageContext = $PublicStorageAccount.Context
 
 	Enable-AzStorageStaticWebsite -Context $StorageContext
+
+	# Enable Container webhooks
+	Write-Verbose "Enabling Container Registry Webhooks for Continuous Deployment to App Service"
+	# LATER: Do this on a deployment slot instead of the production slot
+	az account set --subscription (Get-AzContext).Subscription.Id
+
+	$ApiAppSvcName = $DeploymentResult.Outputs.apiAppSvcName.Value
+	$WebAppSvcName = $DeploymentResult.Outputs.webAppSvcName.Value
+	$AppsRgName = $DeploymentResult.Outputs.appsRgName.Value
+	$CrRgName = $DeploymentResult.Outputs.crResourceGroupName.Value
+	$Acr = $DeploymentResult.Outputs.crName.Value
+
+	# Enable CD for API and web containers, output the Webhook URLs
+	$ApiCdUrl = az webapp deployment container config --name $ApiAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
+	$WebCdUrl = az webapp deployment container config --name $WebAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
+
+	# Create webhooks in the Container Registry
+	$ApiWebHookName = $NamingConvention.Replace('{rtype}', 'wh-api').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('-', '').Replace('{wloadname}', $WorkloadName)
+	$WebWebHookName = $NamingConvention.Replace('{rtype}', 'wh-web').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('-', '').Replace('{wloadname}', $WorkloadName)
+	
+	az acr webhook create --name $ApiWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $ApiCdUrl --scope $ApiContainerImageName.Substring(0, $ApiContainerImageName.IndexOf(':'))
+	az acr webhook create --name $WebWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $WebCdUrl --scope $AppContainerImageName.Substring(0, $AppContainerImageName.IndexOf(':'))
+
+	Write-Warning "`nManual steps: peer the virtual network to the hub"
 
 	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
 	Write-Warning "`nBe sure to capture the Key Vault keys' unique suffix: '$KeysSuffix'"

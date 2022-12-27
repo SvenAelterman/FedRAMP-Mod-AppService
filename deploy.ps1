@@ -152,8 +152,6 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	Write-Verbose $ApiResult.ToString()
 	Write-Verbose $WebResult.ToString()
 
-	Write-Warning "`nManual steps: peer the virtual network to the hub`n"
-
 	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
-	Write-Warning "`nBe sure to capture the Key Vault keys' unique suffix: '$KeysSuffix'"
+	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n"
 }

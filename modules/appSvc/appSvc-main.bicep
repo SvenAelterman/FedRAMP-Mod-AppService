@@ -16,6 +16,7 @@ param kvResourceGroupName string
 
 @description('Specifies the Application Insights workspace to use. { instrumentationKey: "", connectionString: "" }')
 param appInsights object = {}
+param allowAccessSubnetIds array = []
 param tags object = {}
 
 // Create symbolic references to existing resources, to assign RBAC later
@@ -64,6 +65,7 @@ module webAppSvcModule 'appSvc.bicep' = {
     appSvcPlanId: appSvcPlanModule.outputs.id
     appSettings: webAppSettings
     appInsights: appInsights
+    allowAccessSubnetIds: allowAccessSubnetIds
   }
 }
 
@@ -79,6 +81,7 @@ module apiAppSvcModule 'appSvc.bicep' = {
     appSvcPlanId: appSvcPlanModule.outputs.id
     appSettings: apiAppSettings
     appInsights: appInsights
+    allowAccessSubnetIds: allowAccessSubnetIds
   }
 }
 

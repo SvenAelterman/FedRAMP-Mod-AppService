@@ -11,6 +11,8 @@ param appSettings object = {}
 @description('Specifies the Application Insights workspace to use. { instrumentationKey: "", connectionString: "" }')
 param appInsights object = {}
 
+param allowAccessSubnetIds array = []
+
 var linuxFx = 'DOCKER|${crLoginServer}/${dockerImageAndTag}'
 var appSvcKind = 'app,linux,container'
 
@@ -42,6 +44,29 @@ var appInsightsInstrumentationKeySetting = (!empty(appInsights)) ? {
 
 // Merge the setting with the parameter values
 var actualAppSettings = union(appSettings, dockerRegistryServerUrlSetting, appInsightsInstrumentationKeySetting)
+
+var ipSecurityRestrictions = [for (subnetId, i) in allowAccessSubnetIds: {
+  action: 'Allow'
+  tag: 'Default'
+  priority: 100 + i
+  vnetSubnetResourceId: subnetId
+}]
+var defaultDenyIpSecurityRestriction = [ {
+    action: 'Deny'
+    priority: 2147483647
+    name: 'Deny all'
+    description: 'Deny all access'
+    ipAddress: 'Any'
+  } ]
+var defaultAllowIpSecurityRestriction = [ {
+    action: 'Allow'
+    priority: 2147483647
+    name: 'Allow all'
+    description: 'Allow all access'
+    ipAddress: 'Any'
+  } ]
+
+var actualIpSecurityRestrictions = !empty(allowAccessSubnetIds) ? union(ipSecurityRestrictions, defaultDenyIpSecurityRestriction) : defaultAllowIpSecurityRestriction
 
 resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
   name: webAppName
@@ -77,12 +102,10 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
         value: setting.value
       }]
 
-      // TODO: ipSecurityRestrictions
-      // ipSecurityRestrictions: [
-      //    {
-      //      action: 
-      //    }
-      // ]
+      ipSecurityRestrictions: actualIpSecurityRestrictions
+
+      // Do not use the same IP restrictions for the SCM site
+      scmIpSecurityRestrictionsUseMain: false
     }
   }
   tags: actualTags

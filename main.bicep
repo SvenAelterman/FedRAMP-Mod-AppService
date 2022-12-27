@@ -145,7 +145,15 @@ var subnets = {
   }
   appgw: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (3 * subnetBoundary)))}/${subnetCidr}'
-    serviceEndpoints: []
+    // Allow the Application Gateway to access the App Services
+    serviceEndpoints: [
+      {
+        service: 'Microsoft.Web'
+        locations: [
+          '*'
+        ]
+      }
+    ]
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/appGw.json')
   }
@@ -154,7 +162,15 @@ var subnets = {
 var defaultSubnet = deployDefaultSubnet ? {
   default: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (4 * subnetBoundary)))}/${subnetCidr}'
-    serviceEndpoints: []
+    // Allow compute resources in the default subnet to bypass App Svc IP restrictions
+    serviceEndpoints: [
+      {
+        service: 'Microsoft.Web'
+        locations: [
+          '*'
+        ]
+      }
+    ]
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/default.json')
   }
@@ -456,6 +472,15 @@ var additionalApiAppSettings = {
 // Merge the app settings parameter value with the KV secret references
 var actualApiAppSettings = union(apiAppSettings, apiAppKeyVaultRefSettings, additionalApiAppSettings)
 
+// Determine which subnets can access the app services
+var allowAccessSubnetIds = [
+  networkModule.outputs.createdSubnets.appgw.id
+]
+var allowAccessDefaultSubnetId = deployDefaultSubnet ? [
+  networkModule.outputs.createdSubnets.default.id
+] : []
+var actualAllowAccessSubnetIds = concat(allowAccessSubnetIds, allowAccessDefaultSubnetId)
+
 // Deploy App Service
 // This module creates the App Service Plan, two App Services, and necessary RBAC
 module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
@@ -478,6 +503,7 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
       instrumentationKey: appInsightsModule.outputs.instrumentationKey
       connectionString: appInsightsModule.outputs.connectionString
     }
+    allowAccessSubnetIds: actualAllowAccessSubnetIds
     tags: tags
   }
   dependsOn: [
@@ -516,8 +542,6 @@ module appGwModule 'modules/appGw.bicep' = {
     tags: tags
   }
 }
-
-// LATER: App Service IP restrictions
 
 output keyVaultKeysUniqueNameSuffix string = keyVaultKeyWrapperModule.outputs.keyNameUniqueSuffix
 

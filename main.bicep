@@ -474,6 +474,10 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
     subnetId: networkModule.outputs.createdSubnets.apps.id
     apiAppSettings: actualApiAppSettings
     webAppSettings: webAppSettings
+    appInsights: {
+      instrumentationKey: appInsightsModule.outputs.instrumentationKey
+      connectionString: appInsightsModule.outputs.connectionString
+    }
     tags: tags
   }
   dependsOn: [
@@ -599,11 +603,20 @@ module logModule 'modules/log.bicep' = {
   }
 }
 
+// Create an Application Insights instance linked to the Log Analytics Workspace
+module appInsightsModule 'modules/appInsights.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'appi'), 64)
+  scope: appsRg
+  params: {
+    location: location
+    appInsightsName: replace(namingStructure, '{rtype}', 'appi')
+    logAnalyticsWorkspaceId: logModule.outputs.workspaceId
+  }
+}
+
 output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 
 // LATER: Output HOSTS information
-
-// TODO: Add App Insights?
 
 // TODO: Private endpoint for log analytics saved query storage account?
 

@@ -8,8 +8,11 @@ param appSvcPlanId string
 param tags object
 
 param appSettings object = {}
+@description('Specifies the Application Insights workspace to use. { instrumentationKey: "", connectionString: "" }')
+param appInsights object = {}
 
 var linuxFx = 'DOCKER|${crLoginServer}/${dockerImageAndTag}'
+var appSvcKind = 'app,linux,container'
 
 var hiddenRelatedTag = {
   'hidden-related:${appSvcPlanId}': 'empty'
@@ -21,8 +24,24 @@ var actualTags = union(tags, hiddenRelatedTag)
 var dockerRegistryServerUrlSetting = {
   DOCKER_REGISTRY_SERVER_URL: 'https://${crLoginServer}'
 }
+
+var appInsightsInstrumentationKeySetting = (!empty(appInsights)) ? {
+  APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.instrumentationKey
+  APPINSIGHTS_PROFILERFEATURE_VERSION: '1.0.0'
+  APPINSIGHTS_SNAPSHOTFEATURE_VERSION: '1.0.0'
+  APPLICATIONINSIGHTS_CONFIGURATION_CONTENT: ''
+  APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.connectionString
+  ApplicationInsightsAgent_EXTENSION_VERSION: '~3'
+  DiagnosticServices_EXTENSION_VERSION: '~3'
+  InstrumentationEngine_EXTENSION_VERSION: 'disabled'
+  SnapshotDebugger_EXTENSION_VERSION: 'disabled'
+  XDT_MicrosoftApplicationInsights_BaseExtensions: 'disabled'
+  XDT_MicrosoftApplicationInsights_Mode: 'disabled'
+  XDT_MicrosoftApplicationInsights_PreemptSdk: 'disabled'
+} : {}
+
 // Merge the setting with the parameter values
-var actualAppSettings = union(appSettings, dockerRegistryServerUrlSetting)
+var actualAppSettings = union(appSettings, dockerRegistryServerUrlSetting, appInsightsInstrumentationKeySetting)
 
 resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
   name: webAppName
@@ -31,7 +50,7 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
     // Create a system assigned managed identity to read Key Vault secrets and pull container images
     type: 'SystemAssigned'
   }
-  kind: 'app,linux,container'
+  kind: appSvcKind
   properties: {
     serverFarmId: appSvcPlanId
     virtualNetworkSubnetId: subnetId
@@ -47,6 +66,7 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
       linuxFxVersion: linuxFx
       acrUseManagedIdentityCreds: true
       ftpsState: 'FtpsOnly'
+      use32BitWorkerProcess: false
 
       logsDirectorySizeLimit: 35
       httpLoggingEnabled: true
@@ -57,9 +77,22 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
         value: setting.value
       }]
 
+      // TODO: ipSecurityRestrictions
+      // ipSecurityRestrictions: [
+      //    {
+      //      action: 
+      //    }
+      // ]
     }
   }
   tags: actualTags
+}
+
+// Enable the Application Insights site extension
+// Extensions are not supported in App Service for Containers
+resource appServiceSiteExtension 'Microsoft.Web/sites/siteextensions@2022-03-01' = if (!empty(appInsights) && appSvcKind != 'app,linux,container') {
+  parent: appSvc
+  name: 'Microsoft.ApplicationInsights.AzureWebSites'
 }
 
 // LATER: Configure health check endpoint

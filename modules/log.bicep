@@ -9,6 +9,9 @@ resource logAnalyticsWS 'Microsoft.OperationalInsights/workspaces@2022-10-01' = 
   location: location
   properties: {
     forceCmkForQuery: true
+    features: {
+      enableLogAccessUsingOnlyResourcePermissions: true
+    }
   }
   tags: tags
 }

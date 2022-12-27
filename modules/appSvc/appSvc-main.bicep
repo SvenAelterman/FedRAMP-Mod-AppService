@@ -14,6 +14,8 @@ param webAppSettings object
 param crResourceGroupName string
 param kvResourceGroupName string
 
+@description('Specifies the Application Insights workspace to use. { instrumentationKey: "", connectionString: "" }')
+param appInsights object = {}
 param tags object = {}
 
 // Create symbolic references to existing resources, to assign RBAC later
@@ -61,6 +63,7 @@ module webAppSvcModule 'appSvc.bicep' = {
     crLoginServer: cr.properties.loginServer
     appSvcPlanId: appSvcPlanModule.outputs.id
     appSettings: webAppSettings
+    appInsights: appInsights
   }
 }
 
@@ -75,6 +78,7 @@ module apiAppSvcModule 'appSvc.bicep' = {
     crLoginServer: cr.properties.loginServer
     appSvcPlanId: appSvcPlanModule.outputs.id
     appSettings: apiAppSettings
+    appInsights: appInsights
   }
 }
 

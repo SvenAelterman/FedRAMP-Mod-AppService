@@ -217,8 +217,10 @@ module postgresqlShortNameModule 'common-modules/shortname.bicep' = {
 
 var corePrivateDnsZoneNames = [
   // Do not change order, values are referenced by index later
-  'privatelink.azurecr.io'
+  // The environment suffix for container registry includes a . but storage doesn't
+  'privatelink${az.environment().suffixes.acrLoginServer}'
   'privatelink.vaultcore.azure.net'
+  'privatelink.blob.${az.environment().suffixes.storage}'
 ]
 
 // Create DNS zones in the workload subscription specific to this workload (PostgreSQL)
@@ -572,6 +574,7 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
     keyName: keyVaultKeyWrapperModule.outputs.createdKeys.st.name
     uamiId: uamiModule.outputs.id
     allowBlobPublicAccess: true
+    privateEndpointResourceGroupName: networkingRg.name
     tags: tags
   }
   dependsOn: [
@@ -610,6 +613,11 @@ module logQueryStorageAccountModule 'modules/storageAccount.bicep' = {
     keyName: keyVaultKeyWrapperModule.outputs.createdKeys.st.name
     storageAccountName: logQueryStorageAccountNameModule.outputs.shortName
     uamiId: uamiModule.outputs.id
+    privateEndpoint: true
+    privateDnsZoneId: corePrivateDnsZonesModule[2].outputs.zoneId
+    privateEndpointResourceGroupName: networkingRg.name
+    privateEndpointSubnetId: networkModule.outputs.createdSubnets.privateEndpoints.id
+    namingStructure: namingStructure
   }
   dependsOn: [
     uamiKeyVaultRbacModule
@@ -642,7 +650,7 @@ module appInsightsModule 'modules/appInsights.bicep' = {
 output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 
 // Output HOSTS information
-var peNics = concat(keyVaultModule.outputs.nicIds, crModule.outputs.nicIds)
+var peNics = concat(keyVaultModule.outputs.nicIds, crModule.outputs.nicIds, logQueryStorageAccountModule.outputs.nicIds)
 
 module peIpsModule 'modules/privateEndpoints-getIp.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'pe-ip'), 64)
@@ -656,9 +664,7 @@ module peIpsModule 'modules/privateEndpoints-getIp.bicep' = {
 output privateIps array = peIpsModule.outputs.privateIps
 
 // This will only output values on initial deployment. Incremental deployments will not include these values.
-output customDnsConfigs array = concat(keyVaultModule.outputs.peCustomDnsConfigs, crModule.outputs.customDnsConfigs)
-
-// TODO: Private endpoint for log analytics saved query storage account?
+output customDnsConfigs array = concat(keyVaultModule.outputs.peCustomDnsConfigs, crModule.outputs.customDnsConfigs, logQueryStorageAccountModule.outputs.customDnsConfigs)
 
 // NOT COVERED HERE
 // * SOME RBAC

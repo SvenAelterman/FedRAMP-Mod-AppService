@@ -46,7 +46,7 @@ resource peRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
 }
 
 module pe 'privateEndpoint.bicep' = {
-  name: 'kv-pe'
+  name: 'cr-pe'
   scope: peRg
   params: {
     location: location

@@ -153,5 +153,5 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	Write-Verbose $WebResult.ToString()
 
 	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
-	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n"
+	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above; PostgreSQL IP not included)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n"
 }

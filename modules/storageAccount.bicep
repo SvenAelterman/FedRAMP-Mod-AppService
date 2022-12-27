@@ -96,7 +96,7 @@ resource peRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (pri
 }
 
 module pe 'privateEndpoint.bicep' = if (privateEndpoint) {
-  name: 'st-pe'
+  name: 'st-pe-${storageAccountName}'
   scope: peRg
   params: {
     location: location
@@ -111,7 +111,7 @@ module pe 'privateEndpoint.bicep' = if (privateEndpoint) {
   }
 }
 
-output customDnsConfigs array = pe.outputs.peCustomDnsConfigs
-output nicIds array = pe.outputs.nicIds
+output customDnsConfigs array = privateEndpoint ? pe.outputs.peCustomDnsConfigs : []
+output nicIds array = privateEndpoint ? pe.outputs.nicIds : []
 
 output storageAccountName string = storageAccount.name

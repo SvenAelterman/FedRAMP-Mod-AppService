@@ -46,28 +46,13 @@ var appInsightsInstrumentationKeySetting = (!empty(appInsights)) ? {
 // Merge the setting with the parameter values
 var actualAppSettings = union(appSettings, dockerRegistryServerUrlSetting, appInsightsInstrumentationKeySetting)
 
+// Define the IP security restrictions for the App Service
 var ipSecurityRestrictions = [for (subnetId, i) in allowAccessSubnetIds: {
   action: 'Allow'
   tag: 'Default'
   priority: 100 + i
   vnetSubnetResourceId: subnetId
 }]
-var defaultDenyIpSecurityRestriction = [ {
-    action: 'Deny'
-    priority: 2147483647
-    name: 'Deny all'
-    description: 'Deny all access'
-    ipAddress: 'Any'
-  } ]
-var defaultAllowIpSecurityRestriction = [ {
-    action: 'Allow'
-    priority: 2147483647
-    name: 'Allow all'
-    description: 'Allow all access'
-    ipAddress: 'Any'
-  } ]
-
-var actualIpSecurityRestrictions = !empty(allowAccessSubnetIds) ? union(ipSecurityRestrictions, defaultDenyIpSecurityRestriction) : defaultAllowIpSecurityRestriction
 
 resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
   name: webAppName
@@ -103,7 +88,10 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
         value: setting.value
       }]
 
-      ipSecurityRestrictions: actualIpSecurityRestrictions
+      ipSecurityRestrictions: ipSecurityRestrictions
+
+      #disable-next-line BCP037
+      ipSecurityRestrictionsDefaultAction: empty(allowAccessSubnetIds) ? 'Allow' : 'Deny'
 
       // Do not use the same IP restrictions for the SCM site
       scmIpSecurityRestrictionsUseMain: false
@@ -148,3 +136,4 @@ resource diagnosticLogs 'Microsoft.Insights/diagnosticSettings@2021-05-01-previe
 
 output appSvcName string = appSvc.name
 output principalId string = appSvc.identity.principalId
+output actualIpSecurityRestrictions array = ipSecurityRestrictions

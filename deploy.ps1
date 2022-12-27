@@ -116,7 +116,7 @@ $DeploymentResult = New-AzDeployment -Location $Location -Name "$WorkloadName-$E
 $DeploymentResult
 
 if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
-	Write-Host "🔥 Deployment successful!"
+	Write-Host "🔥 Azure Resource Manager deployment successful!"
 
 	Write-Verbose "Enabling Static Websites on Azure Storage"
 	$PublicStorageAccountName = $DeploymentResult.Outputs.publicStorageAccountName.Value
@@ -138,7 +138,7 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	$CrRgName = $DeploymentResult.Outputs.crResourceGroupName.Value
 	$Acr = $DeploymentResult.Outputs.crName.Value
 
-	# Enable CD for API and web containers, output the Webhook URLs
+	# Enable Continuous Deployment for API and web containers, output the Webhook URLs
 	$ApiCdUrl = az webapp deployment container config --name $ApiAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
 	$WebCdUrl = az webapp deployment container config --name $WebAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
 

@@ -149,8 +149,8 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	$ApiResult = az acr webhook create --name $ApiWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $ApiCdUrl --scope $ApiContainerImageName.Substring(0, $ApiContainerImageName.IndexOf(':'))
 	$WebResult = az acr webhook create --name $WebWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $WebCdUrl --scope $AppContainerImageName.Substring(0, $AppContainerImageName.IndexOf(':'))
 
-	Write-Verbose $ApiResult
-	Write-Verbose $WebResult
+	Write-Verbose $ApiResult.ToString()
+	Write-Verbose $WebResult.ToString()
 
 	Write-Warning "`nManual steps: peer the virtual network to the hub`n"
 

@@ -1,4 +1,4 @@
-# PowerShell script to deploy the main.bicep template with parameter values
+# PowerShell script to test the shortname module
 
 #Requires -Modules "Az"
 #Requires -PSEdition Core

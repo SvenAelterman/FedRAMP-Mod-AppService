@@ -504,6 +504,7 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
       connectionString: appInsightsModule.outputs.connectionString
     }
     allowAccessSubnetIds: actualAllowAccessSubnetIds
+    logAnalyticsWorkspaceId: logModule.outputs.workspaceId
     tags: tags
   }
   dependsOn: [
@@ -643,8 +644,6 @@ output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 // LATER: Output HOSTS information
 
 // TODO: Private endpoint for log analytics saved query storage account?
-
-// TODO: Enable App Svc logging for FedRAMP compliance
 
 // NOT COVERED HERE
 // * SOME RBAC

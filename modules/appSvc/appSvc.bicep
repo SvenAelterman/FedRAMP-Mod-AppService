@@ -4,7 +4,8 @@ param subnetId string
 param dockerImageAndTag string
 param crLoginServer string
 param appSvcPlanId string
-
+@description('The required FedRAMP logs will be sent to this workspace.')
+param logAnalyticsWorkspaceId string
 param tags object
 
 param appSettings object = {}
@@ -116,6 +117,31 @@ resource appSvc 'Microsoft.Web/sites@2022-03-01' = {
 resource appServiceSiteExtension 'Microsoft.Web/sites/siteextensions@2022-03-01' = if (!empty(appInsights) && appSvcKind != 'app,linux,container') {
   parent: appSvc
   name: 'Microsoft.ApplicationInsights.AzureWebSites'
+}
+
+var appServiceLogCategories = [
+  'AppServiceHttpLogs'
+  'AppServiceConsoleLogs'
+  'AppServiceAppLogs'
+  'AppServiceAuditLogs'
+  'AppServiceIPSecAuditLogs'
+  'AppServicePlatformLogs'
+]
+
+resource diagnosticLogs 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'Required FedRAMP logging - ${appSvc.name}'
+  scope: appSvc
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [for category in appServiceLogCategories: {
+      enabled: true
+      category: category
+      retentionPolicy: {
+        days: 365
+        enabled: true
+      }
+    }]
+  }
 }
 
 // LATER: Configure health check endpoint

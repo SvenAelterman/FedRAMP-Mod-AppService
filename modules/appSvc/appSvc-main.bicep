@@ -5,6 +5,8 @@ param crName string
 param appContainerImageName string
 param apiContainerImageName string
 param keyVaultName string
+@description('The required FedRAMP logs will be sent to this workspace.')
+param logAnalyticsWorkspaceId string
 
 param deploymentNameStructure string
 
@@ -66,6 +68,7 @@ module webAppSvcModule 'appSvc.bicep' = {
     appSettings: webAppSettings
     appInsights: appInsights
     allowAccessSubnetIds: allowAccessSubnetIds
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }
 
@@ -82,6 +85,7 @@ module apiAppSvcModule 'appSvc.bicep' = {
     appSettings: apiAppSettings
     appInsights: appInsights
     allowAccessSubnetIds: allowAccessSubnetIds
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }
 

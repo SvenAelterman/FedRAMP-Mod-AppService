@@ -41,3 +41,6 @@ resource peDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@202
     ]
   }
 }
+
+output peCustomDnsConfigs array = pe.properties.customDnsConfigs
+output nicIds array = map(pe.properties.networkInterfaces, nic => nic.id)

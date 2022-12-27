@@ -394,7 +394,7 @@ module postgresqlModule 'modules/postgresql.bicep' = {
 
     databaseName: databaseName
 
-    // PostgreSQL Flexible Server requires the version number with the key (not auto-rotate)
+    // PostgreSQL Flexible Server requires the version number with the key (no auto-rotate)
     customerEncryptionKeyUri: keyVaultKeyWrapperModule.outputs.createdKeys.postgres.uriWithVersion
     tags: tags
   }
@@ -579,10 +579,10 @@ module publicStorageAccountModule 'modules/storageAccount.bicep' = {
   ]
 }
 
-// LATER: CDN for custom domain for storage account
-
 output publicStorageAccountName string = publicStorageAccountNameModule.outputs.shortName
 output publicStorageAccountResourceGroupName string = dataRg.name
+
+// LATER: CDN for custom domain for storage account
 
 // Create a storage account to save Log Analytics queries
 module logQueryStorageAccountNameModule 'common-modules/shortname.bicep' = {
@@ -641,7 +641,22 @@ module appInsightsModule 'modules/appInsights.bicep' = {
 
 output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 
-// LATER: Output HOSTS information
+// Output HOSTS information
+var peNics = concat(keyVaultModule.outputs.nicIds, crModule.outputs.nicIds)
+
+module peIpsModule 'modules/privateEndpoints-getIp.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'pe-ip'), 64)
+  scope: networkingRg
+  params: {
+    deploymentNameStructure: deploymentNameStructure
+    privateEndpointNicIds: peNics
+  }
+}
+
+output privateIps array = peIpsModule.outputs.privateIps
+
+// This will only output values on initial deployment. Incremental deployments will not include these values.
+output customDnsConfigs array = concat(keyVaultModule.outputs.peCustomDnsConfigs, crModule.outputs.customDnsConfigs)
 
 // TODO: Private endpoint for log analytics saved query storage account?
 

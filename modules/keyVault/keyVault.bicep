@@ -67,3 +67,5 @@ module pe '../privateEndpoint.bicep' = {
 
 output keyVaultName string = keyVault.name
 output keyVaultUrl string = keyVault.properties.vaultUri
+output peCustomDnsConfigs array = pe.outputs.peCustomDnsConfigs
+output nicIds array = pe.outputs.nicIds

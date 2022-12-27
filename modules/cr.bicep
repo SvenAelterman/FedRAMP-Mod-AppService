@@ -63,3 +63,5 @@ module pe 'privateEndpoint.bicep' = {
 
 output crName string = cr.name
 output acrLoginServer string = cr.properties.loginServer
+output customDnsConfigs array = pe.outputs.peCustomDnsConfigs
+output nicIds array = pe.outputs.nicIds

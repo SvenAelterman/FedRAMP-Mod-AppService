@@ -535,11 +535,13 @@ module appGwModule 'modules/appGw.bicep' = {
         name: 'api'
         appSvcName: appSvcModule.outputs.apiAppSvcName
         hostName: apiHostName
+        customProbePath: '/v0/app/version'
       }
       {
         name: 'web'
         appSvcName: appSvcModule.outputs.webAppSvcName
         hostName: webHostName
+        customProbePath: '/'
       }
     ]
     tags: tags

@@ -92,6 +92,7 @@ Set-StrictMode -Version 2
 	webAppSettings               = $WebAppSettings
 	sequence                     = $Sequence
 	namingConvention             = $NamingConvention
+	tags = $Tags
 }
 
 Select-AzSubscription $TargetSubscription

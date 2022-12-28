@@ -1,14 +1,14 @@
-param kvName string
+param appSvcName string
 param principalId string
 param roleDefinitionId string
 
-resource kv 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
-  name: kvName
+resource appSvc 'Microsoft.Web/sites@2022-03-01' existing = {
+  name: appSvcName
 }
 
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
-  name: guid(kv.id, principalId, roleDefinitionId)
-  scope: kv
+  name: guid(appSvc.id, principalId, roleDefinitionId)
+  scope: appSvc
   properties: {
     roleDefinitionId: roleDefinitionId
     principalId: principalId

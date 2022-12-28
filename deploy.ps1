@@ -55,7 +55,8 @@ Param(
 	[string]$ApiHostName,
 	[bool]$DeployComputeRg = $false,
 	[PSCustomObject]$ApiAppSettings = @{},
-	[PSCustomObject]$WebAppSettings = @{}
+	[PSCustomObject]$WebAppSettings = @{},
+	[string]$DeveloperPrincipalId
 )
 
 Set-StrictMode -Version 2
@@ -85,6 +86,7 @@ Set-StrictMode -Version 2
 	webHostName                  = $WebHostName
 
 	# OPTIONAL
+	developerPrincipalId         = $DeveloperPrincipalId
 	deployBastion                = $DeployBastion
 	deployDefaultSubnet          = $DeployDefaultSubnet
 	deployComputeRg              = $DeployComputeRg
@@ -92,7 +94,7 @@ Set-StrictMode -Version 2
 	webAppSettings               = $WebAppSettings
 	sequence                     = $Sequence
 	namingConvention             = $NamingConvention
-	tags = $Tags
+	tags                         = $Tags
 }
 
 Select-AzSubscription $TargetSubscription

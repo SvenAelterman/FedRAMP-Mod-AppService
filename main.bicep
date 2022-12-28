@@ -49,6 +49,8 @@ param vNetCidr int
 param subnetCidr int
 
 // Optional parameters
+@description('AAD principal that will be assigned permissions to App Svc, App GW, etc. (optional).')
+param developerPrincipalId string = ''
 param dbAadGroupObjectId string = ''
 param dbAadGroupName string = ''
 param deployBastion bool = false
@@ -679,13 +681,109 @@ module peIpsModule 'modules/privateEndpoints-getIp.bicep' = {
   }
 }
 
+// Assign RBAC to the developer principal, if it's provided
+resource acrPushSubscriptionRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(developerPrincipalId)) {
+  name: guid(subscription().id, developerPrincipalId, 'AcrPush')
+  properties: {
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles.AcrPush
+  }
+}
+
+resource readerSubscriptionRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(developerPrincipalId)) {
+  name: guid(subscription().id, developerPrincipalId, 'Reader')
+  properties: {
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles.Reader
+  }
+}
+
+module contributorApiAppSvcRoleAssignmentModule 'modules/roleAssignments/roleAssignment-app.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-app-api-dev'), 64)
+  scope: appsRg
+  params: {
+    appSvcName: appSvcModule.outputs.apiAppSvcName
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles.Contributor
+  }
+}
+
+module contributorWebAppSvcRoleAssignmentModule 'modules/roleAssignments/roleAssignment-app.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-app-web-dev'), 64)
+  scope: appsRg
+  params: {
+    appSvcName: appSvcModule.outputs.webAppSvcName
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles.Contributor
+  }
+}
+
+module blobContributorRoleAssignmentModule 'modules/roleAssignments/roleAssignment-st.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-st-blob-dev'), 64)
+  scope: dataRg
+  params: {
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles['Storage Blob Data Contributor']
+    storageAccountName: publicStorageAccountModule.outputs.storageAccountName
+  }
+}
+
+module contributorAppGwRoleAssignmentModule 'modules/roleAssignments/roleAssignment-appGw.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-appgw-dev'), 64)
+  scope: networkingRg
+  params: {
+    appGwName: appGwModule.outputs.appGwName
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles.Contributor
+  }
+}
+
+module kvSecretsUserRoleAssignmentModule 'modules/roleAssignments/roleAssignment-kv.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-kv-secrets-dev'), 64)
+  scope: securityRg
+  params: {
+    kvName: keyVaultModule.outputs.keyVaultName
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles['Key Vault Secrets User']
+  }
+}
+
+module kvCertificatesOfficerRoleAssignmentModule 'modules/roleAssignments/roleAssignment-kv.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-kv-certs-dev'), 64)
+  scope: securityRg
+  params: {
+    kvName: keyVaultModule.outputs.keyVaultName
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles['Key Vault Certificates Officer']
+  }
+}
+
+module kvReaderRoleAssignmentModule 'modules/roleAssignments/roleAssignment-kv.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-kv-reader-dev'), 64)
+  scope: securityRg
+  params: {
+    kvName: keyVaultModule.outputs.keyVaultName
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles['Key Vault Reader']
+  }
+}
+
+module uamiOperatorRoleAssignmentModule 'modules/roleAssignments/roleAssignment-uami.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-uami-dev'), 64)
+  scope: securityRg
+  params: {
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles['Managed Identity Operator']
+    uamiName: uamiModule.outputs.name
+  }
+}
+
 output privateIps array = peIpsModule.outputs.privateIps
 
 // This will only output values on initial deployment. Incremental deployments will not include these values.
 output customDnsConfigs array = concat(keyVaultModule.outputs.peCustomDnsConfigs, crModule.outputs.customDnsConfigs, logQueryStorageAccountModule.outputs.customDnsConfigs)
 
 // NOT COVERED HERE
-// * SOME RBAC
 // * CONTAINER IMAGE DEPLOYMENT
 // * AUDITING / DIAGNOSTIC SETTINGS
 // * CUSTOM DOMAIN NAMES

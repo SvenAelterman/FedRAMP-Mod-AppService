@@ -22,3 +22,4 @@ output principalId string = uami.properties.principalId
 output id string = uami.id
 // This is the ID that the container registry needs
 output applicationId string = uami.properties.clientId
+output name string = uami.name

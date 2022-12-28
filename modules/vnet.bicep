@@ -2,6 +2,7 @@ param location string
 param vnetName string
 param subnetDefs object
 param vnetAddressPrefix string
+@description('The NSG array must have the NSGs sorted in the same way items(subnetDefs) will be sorted.')
 param networkSecurityGroups array
 
 param tags object = {}
@@ -36,6 +37,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2022-05-01' = {
         ]
         networkSecurityGroup: {
           id: networkSecurityGroups[i]
+        }
+        routeTable: empty(subnet.value.routeTable) ? null : {
+          id: subnet.value.routeTable
         }
       }
     }]

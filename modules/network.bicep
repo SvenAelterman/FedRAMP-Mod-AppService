@@ -6,8 +6,9 @@ param namingStructure string
 
 param tags object = {}
 
+// Create a Network Security Group for each subnet
 module networkSecurityModule 'networkSecurity.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'networkSecurity')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'networkSecurity'), 64)
   params: {
     subnetDefs: subnetDefs
     deploymentNameStructure: deploymentNameStructure
@@ -20,7 +21,7 @@ var vNetName = replace(namingStructure, '{rtype}', 'vnet')
 
 // This is the parent module to deploy a VNet with subnets and output the subnets with their IDs as a custom object
 module vNetModule 'vnet.bicep' = {
-  name: replace(deploymentNameStructure, '{rtype}', 'vnet')
+  name: take(replace(deploymentNameStructure, '{rtype}', 'vnet'), 64)
   params: {
     location: location
     subnetDefs: subnetDefs

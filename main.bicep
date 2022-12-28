@@ -108,15 +108,21 @@ resource computeRg 'Microsoft.Resources/resourceGroups@2021-04-01' = if (deployC
   tags: tags
 }
 
-// resource storageRg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-//   name: replace(rgNamingStructure, '{wloadname}', '${workloadName}-storage')
-//   location: location
-//   tags: tags
-// }
-
+// Get a reference to the existing hub subscription's resource group for private DNS zones
 resource coreDnsZoneRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
   name: coreDnsZoneResourceGroupName
   scope: subscription(coreSubscriptionId)
+}
+
+// Create the route table for the Application Gateway subnet
+module rtAppGwModule 'modules/routeTable-appGw.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'rt-appgw'), 64)
+  scope: networkingRg
+  params: {
+    location: location
+    namingStructure: namingStructure
+    tags: tags
+  }
 }
 
 var SubnetSize = 32 - subnetCidr
@@ -130,18 +136,21 @@ var subnets = {
     serviceEndpoints: []
     delegation: ''
     securityRules: []
+    routeTable: ''
   }
   postgresql: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (1 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
     delegation: 'Microsoft.DBforPostgreSQL/flexibleServers'
     securityRules: loadJsonContent('content/nsgrules/postgresql.json')
+    routeTable: ''
   }
   apps: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (2 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
     delegation: 'Microsoft.Web/serverFarms'
     securityRules: []
+    routeTable: ''
   }
   appgw: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (3 * subnetBoundary)))}/${subnetCidr}'
@@ -156,6 +165,7 @@ var subnets = {
     ]
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/appGw.json')
+    routeTable: rtAppGwModule.outputs.routeTableId
   }
 }
 
@@ -173,6 +183,7 @@ var defaultSubnet = deployDefaultSubnet ? {
     ]
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/default.json')
+    routeTable: ''
   }
 } : {}
 
@@ -182,6 +193,7 @@ var azureBastionSubnet = deployBastion ? {
     serviceEndpoints: []
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/bastion.json')
+    routeTable: ''
   }
 } : {}
 
@@ -199,6 +211,10 @@ module networkModule 'modules/network.bicep' = {
     namingStructure: namingStructure
     tags: tags
   }
+  dependsOn: [
+    // Explicitly define this because Bicep might not pick up on the reference in the variable
+    rtAppGwModule
+  ]
 }
 
 // Create a valid name for the PostgreSQL flexible server

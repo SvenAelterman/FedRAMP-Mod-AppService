@@ -10,7 +10,7 @@ param appsRgName string
 param tags object = {}
 
 // Retrieve existing App Service instances
-resource appsRg 'Microsoft.Resources/resourceGroups@2022-09-01' existing = {
+resource appsRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
   name: appsRgName
   scope: subscription()
 }

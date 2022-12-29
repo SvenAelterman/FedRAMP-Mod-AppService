@@ -146,8 +146,8 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	$WebCdUrl = az webapp deployment container config --name $WebAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
 
 	# Create webhooks in the Container Registry
-	$ApiWebHookName = $NamingConvention.Replace('{rtype}', 'wh-api').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('-', '').Replace('{wloadname}', $WorkloadName)
-	$WebWebHookName = $NamingConvention.Replace('{rtype}', 'wh-web').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('-', '').Replace('{wloadname}', $WorkloadName)
+	$ApiWebHookName = $NamingConvention.Replace('{rtype}', 'wh-api').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('{wloadname}', $WorkloadName).Replace('-', '')
+	$WebWebHookName = $NamingConvention.Replace('{rtype}', 'wh-web').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('{wloadname}', $WorkloadName).Replace('-', '')
 	
 	$ApiResult = az acr webhook create --name $ApiWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $ApiCdUrl --scope $ApiContainerImageName.Substring(0, $ApiContainerImageName.IndexOf(':'))
 	$WebResult = az acr webhook create --name $WebWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $WebCdUrl --scope $AppContainerImageName.Substring(0, $AppContainerImageName.IndexOf(':'))
@@ -156,5 +156,5 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	Write-Verbose $WebResult.ToString()
 
 	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
-	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above; PostgreSQL IP not included)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n"
+	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above; PostgreSQL IP not included)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n`tCreate database user for Forelab`n"
 }

@@ -664,6 +664,7 @@ module appInsightsModule 'modules/appInsights.bicep' = {
     location: location
     appInsightsName: replace(namingStructure, '{rtype}', 'appi')
     logAnalyticsWorkspaceId: logModule.outputs.workspaceId
+    tags: tags
   }
 }
 

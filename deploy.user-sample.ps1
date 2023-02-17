@@ -24,7 +24,7 @@
 [string]$PostgreSQLVersion = '14'
 [string]$DatabaseName = 'NAME OF A DATABASE TO BE CREATED (OPTIONAL)'
 
-[PSCustomObject]$Tags = @{
+[hashtable]$Tags = @{
 	'date-created' = (Get-Date -Format 'yyyy-MM-dd')
 	purpose        = $Environment
 	lifetime       = 'short'
@@ -39,7 +39,7 @@
 # Only application settings known before deployment time are listed here
 # DB_HOST and DB_NAME are added after PostgreSQL deployment
 # Secret values are injected in main.bicep (DB_USER, DB_PASS, EMAIL_TOKEN)
-[PSCustomObject]$ApiAppSettings = @{
+[hashtable]$ApiAppSettings = @{
 	NODE_ENV                            = 'localhost'
 	DB_PORT                             = 5432
 	PORT                                = 80
@@ -51,7 +51,7 @@
 }
 
 # Only if environment variables are needed
-[PSCustomObject]$WebAppSettings = @{
+[hashtable]$WebAppSettings = @{
 }
 
 # LATER: Get from Key Vault (not the project's Key Vault)

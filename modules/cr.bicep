@@ -45,7 +45,7 @@ resource peRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
   scope: subscription()
 }
 
-module pe 'privateEndpoint.bicep' = {
+module pe 'networking/privateEndpoint.bicep' = {
   name: 'cr-pe'
   scope: peRg
   params: {

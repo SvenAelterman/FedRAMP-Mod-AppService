@@ -117,7 +117,7 @@ resource coreDnsZoneRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing 
 }
 
 // Create the route table for the Application Gateway subnet
-module rtAppGwModule 'modules/routeTable-appGw.bicep' = {
+module rtAppGwModule 'modules/networking/routeTable-appGw.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'rt-appgw'), 64)
   scope: networkingRg
   params: {
@@ -202,7 +202,7 @@ var azureBastionSubnet = deployBastion ? {
 var subnetsToDeploy = union(subnets, azureBastionSubnet, defaultSubnet)
 
 // Create the basic network resources: Virtual Network + subnets, Network Security Groups
-module networkModule 'modules/network.bicep' = {
+module networkModule 'modules/networking/network.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'network'), 64)
   scope: networkingRg
   params: {
@@ -242,7 +242,7 @@ var corePrivateDnsZoneNames = [
 ]
 
 // Create DNS zones in the workload subscription specific to this workload (PostgreSQL)
-module pgDnsZonesModule 'modules/privateDnsZone.bicep' = {
+module pgDnsZonesModule 'modules/networking/privateDnsZone.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'dns-pg'), 64)
   scope: networkingRg
   params: {
@@ -252,7 +252,7 @@ module pgDnsZonesModule 'modules/privateDnsZone.bicep' = {
 }
 
 // Link the private DNS Zones to the virtual network
-module pgDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = {
+module pgDnsZonesLinkModule 'modules/networking/privateDnsZoneVNetLink.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'dns-link-pg'), 64)
   scope: networkingRg
   params: {
@@ -262,7 +262,7 @@ module pgDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = {
 }
 
 // Create DNS zones in the shared core
-module corePrivateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName in corePrivateDnsZoneNames: {
+module corePrivateDnsZonesModule 'modules/networking/privateDnsZone.bicep' = [for zoneName in corePrivateDnsZoneNames: {
   name: take(replace(deploymentNameStructure, '{rtype}', 'dns-${take(zoneName, 32)}'), 64)
   scope: coreDnsZoneRg
   params: {
@@ -271,7 +271,7 @@ module corePrivateDnsZonesModule 'modules/privateDnsZone.bicep' = [for zoneName 
 }]
 
 // Link the private DNS Zones to the virtual network
-module corePrivateDnsZonesLinkModule 'modules/privateDnsZoneVNetLink.bicep' = [for (zoneName, i) in corePrivateDnsZoneNames: {
+module corePrivateDnsZonesLinkModule 'modules/networking/privateDnsZoneVNetLink.bicep' = [for (zoneName, i) in corePrivateDnsZoneNames: {
   name: take(replace(deploymentNameStructure, '{rtype}', 'dns-link-${take(zoneName, 29)}'), 64)
   scope: coreDnsZoneRg
   params: {
@@ -424,7 +424,7 @@ module postgresqlModule 'modules/postgresql.bicep' = {
 }
 
 // Deploy Bastion
-module bastionModule 'modules/bastion.bicep' = if (deployBastion) {
+module bastionModule 'modules/networking/bastion.bicep' = if (deployBastion) {
   name: take(replace(deploymentNameStructure, '{rtype}', 'bas'), 64)
   scope: networkingRg
   params: {
@@ -673,7 +673,7 @@ output encryptionKeyNames object = keyVaultKeyWrapperModule.outputs.createdKeys
 // Output HOSTS information
 var peNics = concat(keyVaultModule.outputs.nicIds, crModule.outputs.nicIds, logQueryStorageAccountModule.outputs.nicIds)
 
-module peIpsModule 'modules/privateEndpoints-getIp.bicep' = {
+module peIpsModule 'modules/networking/privateEndpoints-getIp.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'pe-ip'), 64)
   scope: networkingRg
   params: {

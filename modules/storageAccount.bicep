@@ -95,7 +95,7 @@ resource peRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (pri
   scope: subscription()
 }
 
-module pe 'privateEndpoint.bicep' = if (privateEndpoint) {
+module pe 'networking/privateEndpoint.bicep' = if (privateEndpoint) {
   name: 'st-pe-${storageAccountName}'
   scope: peRg
   params: {

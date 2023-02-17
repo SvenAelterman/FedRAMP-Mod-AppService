@@ -156,5 +156,5 @@ if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
 	Write-Verbose $WebResult.ToString()
 
 	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
-	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above; PostgreSQL IP not included)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n`tCreate database user for Forelab`n`tSet custom domain names for App Services`n"
+	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above; PostgreSQL IP not included)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n`tCreate database user for API app`n`tSet custom domain names for App Services`n"
 }

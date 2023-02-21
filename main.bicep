@@ -28,6 +28,32 @@ param databaseName string
 @secure()
 param emailToken string
 
+/*
+  Object schema:
+  {
+    app-service-name-1: {
+      apps: [
+        {
+        HostName: string
+        ContainerImageName: string (future: optional)
+        AppSettings: object: {
+          SETTING_NAME: value
+          ...
+        }
+        {
+          ...
+        }
+      ]
+      }
+    }
+    app-service-name-2: {
+      ...
+    }
+  }
+*/
+param appServiceDefinitions object
+
+// TODO: Deprecate
 param apiAppSettings object
 param webAppSettings object
 
@@ -36,6 +62,7 @@ param apiContainerImageName string
 
 param apiHostName string
 param webHostName string
+// End deprecate
 
 @minValue(0)
 @maxValue(128)
@@ -147,6 +174,7 @@ var subnets = {
     securityRules: loadJsonContent('content/nsgrules/postgresql.json')
     routeTable: ''
   }
+  // For backward compatibility reasons, keeping this name
   apps: {
     addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (2 * subnetBoundary)))}/${subnetCidr}'
     serviceEndpoints: []
@@ -168,6 +196,14 @@ var subnets = {
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/appGw.json')
     routeTable: rtAppGwModule.outputs.routeTableId
+  }
+  frontendApps: {
+    // For backward compatibility reasons, skipping 4 and 5 because they are used below
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (6 * subnetBoundary)))}/${subnetCidr}'
+    serviceEndpoints: []
+    delegation: 'Microsoft.Web/serverFarms'
+    securityRules: []
+    routeTable: ''
   }
 }
 
@@ -453,6 +489,7 @@ var kvSecrets = {
     value: emailToken
   }
 }
+
 // Create Key Vault secrets for app settings
 module keyVaultSecretsModule 'modules/keyVault/keyVault-secrets.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'kv-secrets'), 64)
@@ -563,6 +600,9 @@ module appGwModule 'modules/appGw.bicep' = {
       }
     ]
     tags: tags
+
+    // TODO: Update
+    createHttpRedirectRoutingRules: false
   }
 }
 

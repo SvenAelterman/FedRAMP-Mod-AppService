@@ -1,9 +1,11 @@
 param location string
 param namingStructure string
 param subnetId string
+param frontendSubnetId string
 param crName string
 param appContainerImageName string
 param apiContainerImageName string
+param adminPanelContainerImageName string
 param keyVaultName string
 @description('The required FedRAMP logs will be sent to this workspace.')
 param logAnalyticsWorkspaceId string
@@ -12,6 +14,7 @@ param deploymentNameStructure string
 
 param apiAppSettings object
 param webAppSettings object
+param adminPanelAppSettings object
 
 param crResourceGroupName string
 param kvResourceGroupName string
@@ -47,13 +50,23 @@ module appSvcPlanModule 'appSvcPlan.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'plan'), 64)
   params: {
     location: location
-    namingStructure: namingStructure
+    appSvcPlanName: replace(namingStructure, '{rtype}', 'plan')
+    tags: tags
+  }
+}
+
+module frontendAppSvcPlanModule 'appSvcPlan.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'plan-frontend'), 64)
+  params: {
+    location: location
+    appSvcPlanName: replace(namingStructure, '{rtype}', 'plan-frontend')
     tags: tags
   }
 }
 
 var webAppName = replace(namingStructure, '{rtype}', 'app-web')
 var apiAppName = replace(namingStructure, '{rtype}', 'app-api')
+var adminPanelAppName = replace(namingStructure, '{rtype}', 'app-admin')
 
 module webAppSvcModule 'appSvc.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'app-web'), 64)
@@ -61,11 +74,28 @@ module webAppSvcModule 'appSvc.bicep' = {
     location: location
     tags: tags
     dockerImageAndTag: appContainerImageName
-    subnetId: subnetId
+    subnetId: frontendSubnetId
     webAppName: webAppName
     crLoginServer: cr.properties.loginServer
-    appSvcPlanId: appSvcPlanModule.outputs.id
+    appSvcPlanId: frontendAppSvcPlanModule.outputs.id
     appSettings: webAppSettings
+    appInsights: appInsights
+    allowAccessSubnetIds: allowAccessSubnetIds
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
+  }
+}
+
+module adminPanelAppSvcModule 'appSvc.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'app-admin'), 64)
+  params: {
+    location: location
+    tags: tags
+    dockerImageAndTag: adminPanelContainerImageName
+    subnetId: frontendSubnetId
+    webAppName: adminPanelAppName
+    crLoginServer: cr.properties.loginServer
+    appSvcPlanId: frontendAppSvcPlanModule.outputs.id
+    appSettings: adminPanelAppSettings
     appInsights: appInsights
     allowAccessSubnetIds: allowAccessSubnetIds
     logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
@@ -113,6 +143,15 @@ module webCrRoleAssignmentModule '../roleAssignments/roleAssignment-cr.bicep' = 
   }
 }
 
+module adminPanelCrRoleAssignmentModule '../roleAssignments/roleAssignment-cr.bicep' = {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-cr-adminpanel'), 64)
+  scope: crRg
+  params: {
+    crName: cr.name
+    principalId: adminPanelAppSvcModule.outputs.principalId
+  }
+}
+
 // Create RBAC assignments to allow the app services' managed identity to read secrets from the Key Vault
 module apiKvRoleAssignmentModule '../roleAssignments/roleAssignment-kv.bicep' = {
   name: take(replace(deploymentNameStructure, '{rtype}', 'role-kv-api'), 64)
@@ -128,5 +167,8 @@ module apiKvRoleAssignmentModule '../roleAssignments/roleAssignment-kv.bicep' = 
 
 output apiAppSvcPrincipalId string = apiAppSvcModule.outputs.principalId
 output webAppSvcPrincipalId string = webAppSvcModule.outputs.principalId
+output adminPanelAppSvcPrincipalId string = adminPanelAppSvcModule.outputs.principalId
+
 output apiAppSvcName string = apiAppName
 output webAppSvcName string = webAppName
+output adminPanelAppsvcName string = adminPanelAppName

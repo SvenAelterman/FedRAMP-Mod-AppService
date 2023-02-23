@@ -1,10 +1,10 @@
 param location string
-param namingStructure string
+param appSvcPlanName string
 
 param tags object = {}
 
 resource appSvcPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
-  name: toLower(replace(namingStructure, '{rtype}', 'plan'))
+  name: appSvcPlanName
   location: location
   kind: 'Linux'
   sku: {

@@ -62,6 +62,11 @@
 
 [string]$DeveloperPrincipalId = ''
 
+### NEW
+[string]$AdminPanelContainerImageName = 'NAME AND TAG OF THE ADMIN PANEL APP CONTAINER IMAGE'
+[string]$AdminPanelHostName = 'FQDN OF THE ADMIN PANEL APP'
+[PSCustomObject]$AdminPanelAppSettings = @{}
+
 #END MODIFY
 
 ./deploy.ps1 -Sequence $Sequence -WorkloadName $WorkloadName -Environment $Environment -DeployBastion $DeployBastion `
@@ -74,4 +79,5 @@
 	-ApiContainerImageName $ApiContainerImageName -AppContainerImageName $AppContainerImageName `
 	-Verbose -Tags $Tags -ApiAppSettings $ApiAppSettings -WebAppSettings $WebAppSettings `
 	-DatabaseName $DatabaseName -ApiHostName $ApiHostName -WebHostName $WebHostName `
-	-DeveloperPrincipalId $DeveloperPrincipalId
+	-DeveloperPrincipalId $DeveloperPrincipalId `
+	-AdminPanelAppSettings $AdminPanelAppSettings -AdminPanelContainerImageName $AdminPanelContainerImageName -AdminPanelHostName $AdminPanelHostName

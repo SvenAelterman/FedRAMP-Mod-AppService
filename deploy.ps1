@@ -48,14 +48,19 @@ Param(
 	[Parameter(Mandatory = $true)]
 	[string]$ApiContainerImageName,
 	[Parameter(Mandatory = $true)]
+	[string]$AdminPanelContainerImageName,
+	[Parameter(Mandatory = $true)]
 	[string]$AppContainerImageName,
 	[Parameter(Mandatory = $true)]
 	[string]$WebHostName,
+	[Parameter(Mandatory = $true)]
+	[string]$AdminPanelHostName,
 	[Parameter(Mandatory = $true)]
 	[string]$ApiHostName,
 	[bool]$DeployComputeRg = $false,
 	[PSCustomObject]$ApiAppSettings = @{},
 	[PSCustomObject]$WebAppSettings = @{},
+	[PSCustomObject]$AdminPanelAppSettings = @{},
 	[string]$DeveloperPrincipalId
 )
 
@@ -81,9 +86,11 @@ Set-StrictMode -Version 2
 	subnetCidr                   = $SubnetCidr
 	appContainerImageName        = $AppContainerImageName
 	apiContainerImageName        = $ApiContainerImageName
+	adminPanelContainerImageName = $AdminPanelContainerImageName
 	databaseName                 = $DatabaseName
 	apiHostName                  = $ApiHostName
 	webHostName                  = $WebHostName
+	adminPanelHostName           = $AdminPanelHostName
 
 	# OPTIONAL
 	developerPrincipalId         = $DeveloperPrincipalId
@@ -92,6 +99,7 @@ Set-StrictMode -Version 2
 	deployComputeRg              = $DeployComputeRg
 	apiAppSettings               = $ApiAppSettings
 	webAppSettings               = $WebAppSettings
+	adminPanelAppSettings        = $AdminPanelAppSettings
 	sequence                     = $Sequence
 	namingConvention             = $NamingConvention
 	tags                         = $Tags
@@ -113,48 +121,60 @@ else {
 	Write-Verbose "$($PostgresSP.DisplayName) is already registered."
 }
 
-$DeploymentResult = New-AzDeployment -Location $Location -Name "$WorkloadName-$Environment-$(Get-Date -Format 'yyyyMMddThhmmssZ' -AsUTC)" `
-	-TemplateFile ".\main.bicep" -TemplateParameterObject $TemplateParameters
+$Disconnected = $Host.UI.PromptForChoice('Confirm VNet disconnect', 'Has the current "web" app service been disconnected from the VNet?', @('&Yes', '&No'), 1)
 
-$DeploymentResult
+if ($Disconnected -eq 0) {
+	$DeploymentResult = New-AzDeployment -Location $Location -Name "$WorkloadName-$Environment-$(Get-Date -Format 'yyyyMMddThhmmssZ' -AsUTC)" `
+		-TemplateFile ".\main.bicep" -TemplateParameterObject $TemplateParameters
 
-if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
-	Write-Host "🔥 Azure Resource Manager deployment successful!"
+	$DeploymentResult
 
-	Write-Verbose "Enabling Static Websites on Azure Storage"
-	$PublicStorageAccountName = $DeploymentResult.Outputs.publicStorageAccountName.Value
-	$PublicStorageAccountResourceGroupName = $DeploymentResult.Outputs.publicStorageAccountResourceGroupName.Value
+	if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
+		Write-Host "🔥 Azure Resource Manager deployment successful!"
 
-	$PublicStorageAccount = Get-AzStorageAccount -ResourceGroupName $PublicStorageAccountResourceGroupName -AccountName $PublicStorageAccountName
-	$StorageContext = $PublicStorageAccount.Context
+		Write-Verbose "Enabling Static Websites on Azure Storage"
+		$PublicStorageAccountName = $DeploymentResult.Outputs.publicStorageAccountName.Value
+		$PublicStorageAccountResourceGroupName = $DeploymentResult.Outputs.publicStorageAccountResourceGroupName.Value
 
-	Enable-AzStorageStaticWebsite -Context $StorageContext
+		$PublicStorageAccount = Get-AzStorageAccount -ResourceGroupName $PublicStorageAccountResourceGroupName -AccountName $PublicStorageAccountName
+		$StorageContext = $PublicStorageAccount.Context
 
-	# Enable Container webhooks
-	Write-Verbose "Enabling Container Registry Webhooks for Continuous Deployment to App Service"
-	# LATER: Do this on a deployment slot instead of the production slot
-	az account set --subscription (Get-AzContext).Subscription.Id
+		Enable-AzStorageStaticWebsite -Context $StorageContext
 
-	$ApiAppSvcName = $DeploymentResult.Outputs.apiAppSvcName.Value
-	$WebAppSvcName = $DeploymentResult.Outputs.webAppSvcName.Value
-	$AppsRgName = $DeploymentResult.Outputs.appsRgName.Value
-	$CrRgName = $DeploymentResult.Outputs.crResourceGroupName.Value
-	$Acr = $DeploymentResult.Outputs.crName.Value
+		# Enable Container webhooks
+		Write-Verbose "Enabling Container Registry Webhooks for Continuous Deployment to App Service"
+		# LATER: Do this on a deployment slot instead of the production slot
+		az account set --subscription (Get-AzContext).Subscription.Id
 
-	# Enable Continuous Deployment for API and web containers, output the Webhook URLs
-	$ApiCdUrl = az webapp deployment container config --name $ApiAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
-	$WebCdUrl = az webapp deployment container config --name $WebAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
+		$ApiAppSvcName = $DeploymentResult.Outputs.apiAppSvcName.Value
+		$WebAppSvcName = $DeploymentResult.Outputs.webAppSvcName.Value
+		$AdminPanelAppSvcName = $DeploymentResult.Outputs.adminPanelAppSvcName.Value
+		$AppsRgName = $DeploymentResult.Outputs.appsRgName.Value
+		$CrRgName = $DeploymentResult.Outputs.crResourceGroupName.Value
+		$Acr = $DeploymentResult.Outputs.crName.Value
 
-	# Create webhooks in the Container Registry
-	$ApiWebHookName = $NamingConvention.Replace('{rtype}', 'wh-api').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('{wloadname}', $WorkloadName).Replace('-', '')
-	$WebWebHookName = $NamingConvention.Replace('{rtype}', 'wh-web').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('{wloadname}', $WorkloadName).Replace('-', '')
-	
-	$ApiResult = az acr webhook create --name $ApiWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $ApiCdUrl --scope $ApiContainerImageName.Substring(0, $ApiContainerImageName.IndexOf(':'))
-	$WebResult = az acr webhook create --name $WebWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $WebCdUrl --scope $AppContainerImageName.Substring(0, $AppContainerImageName.IndexOf(':'))
+		# Enable Continuous Deployment for API and web containers, output the Webhook URLs
+		$ApiCdUrl = az webapp deployment container config --name $ApiAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
+		$WebCdUrl = az webapp deployment container config --name $WebAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
+		$AdminPanelCdUrl = az webapp deployment container config --name $AdminPanelAppSvcName --resource-group $AppsRgName --enable-cd true --query CI_CD_URL --output tsv
 
-	Write-Verbose $ApiResult.ToString()
-	Write-Verbose $WebResult.ToString()
+		# Create webhooks in the Container Registry
+		$ApiWebHookName = $NamingConvention.Replace('{rtype}', 'wh-api').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('{wloadname}', $WorkloadName).Replace('-', '')
+		$WebWebHookName = $NamingConvention.Replace('{rtype}', 'wh-web').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('{wloadname}', $WorkloadName).Replace('-', '')
+		$AdminPanelWebHookName = $NamingConvention.Replace('{rtype}', 'wh-adminpanel').Replace('{env}', $Environment).Replace('{loc}', $Location).Replace('{seq}', $Sequence).Replace('{wloadname}', $WorkloadName).Replace('-', '')
+		
+		$ApiResult = az acr webhook create --name $ApiWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $ApiCdUrl --scope $ApiContainerImageName.Substring(0, $ApiContainerImageName.IndexOf(':'))
+		$WebResult = az acr webhook create --name $WebWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $WebCdUrl --scope $AppContainerImageName.Substring(0, $AppContainerImageName.IndexOf(':'))
+		$AdminPanelResult = az acr webhook create --name $AdminPanelWebHookName --registry $Acr --resource-group $CrRgName --actions push --uri $AdminPanelCdUrl --scope $AdminPanelContainerImageName.Substring(0, $AdminPanelContainerImageName.IndexOf(':'))
 
-	$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
-	Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above; PostgreSQL IP not included)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n`t- Create database user for API app`n`t- Set custom domain names for App Services`n"
+		Write-Verbose $ApiResult.ToString()
+		Write-Verbose $WebResult.ToString()
+		Write-Verbose $AdminPanelResult.ToString()
+
+		$KeysSuffix = $DeploymentResult.Outputs.keyVaultKeysUniqueNameSuffix.Value
+		Write-Warning "`nManual steps:`n`t- Peer the virtual network to the hub`n`t- Update HOSTS file (see output above; PostgreSQL IP not included)`n`t- Capture the encryption key name suffix: '$KeysSuffix'`n`t- Create database user for API app`n`t- Set custom domain names for App Services`n"
+	}
+}
+else {
+	Write-Warning '`nPlease disconnect the "web" app service from the VNet first, then re-run the script.'
 }

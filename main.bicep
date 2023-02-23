@@ -30,12 +30,15 @@ param emailToken string
 
 param apiAppSettings object
 param webAppSettings object
+param adminPanelAppSettings object
 
 param appContainerImageName string
 param apiContainerImageName string
+param adminPanelContainerImageName string
 
 param apiHostName string
 param webHostName string
+param adminPanelHostName string
 
 @minValue(0)
 @maxValue(128)
@@ -168,6 +171,13 @@ var subnets = {
     delegation: ''
     securityRules: loadJsonContent('content/nsgrules/appGw.json')
     routeTable: rtAppGwModule.outputs.routeTableId
+  }
+  frontendApps: {
+    addressPrefix: '${replace(vNetAddressSpace, '{octet4}', string(vNetAddressSpaceOctet4Min + (6 * subnetBoundary)))}/${subnetCidr}'
+    serviceEndpoints: []
+    delegation: 'Microsoft.Web/serverFarms'
+    securityRules: []
+    routeTable: ''
   }
 }
 
@@ -510,6 +520,7 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
     location: location
     apiContainerImageName: apiContainerImageName
     appContainerImageName: appContainerImageName
+    adminPanelContainerImageName: adminPanelContainerImageName
     crName: crModule.outputs.crName
     crResourceGroupName: containerRegRg.name
     deploymentNameStructure: deploymentNameStructure
@@ -519,6 +530,8 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
     subnetId: networkModule.outputs.createdSubnets.apps.id
     apiAppSettings: actualApiAppSettings
     webAppSettings: webAppSettings
+    adminPanelAppSettings: adminPanelAppSettings
+    frontendSubnetId: networkModule.outputs.createdSubnets.frontendApps.id
     appInsights: {
       instrumentationKey: appInsightsModule.outputs.instrumentationKey
       connectionString: appInsightsModule.outputs.connectionString
@@ -534,6 +547,7 @@ module appSvcModule 'modules/appSvc/appSvc-main.bicep' = {
 
 output apiAppSvcName string = appSvcModule.outputs.apiAppSvcName
 output webAppSvcName string = appSvcModule.outputs.webAppSvcName
+output adminPanelAppSvcName string = appSvcModule.outputs.adminPanelAppsvcName
 output appsRgName string = appsRg.name
 output crName string = crModule.outputs.crName
 output crResourceGroupName string = containerRegRg.name
@@ -559,6 +573,12 @@ module appGwModule 'modules/appGw.bicep' = {
         name: 'web'
         appSvcName: appSvcModule.outputs.webAppSvcName
         hostName: webHostName
+        customProbePath: '/'
+      }
+      {
+        name: 'adminpanel'
+        appSvcName: appSvcModule.outputs.adminPanelAppsvcName
+        hostName: adminPanelHostName
         customProbePath: '/'
       }
     ]
@@ -714,6 +734,16 @@ module contributorWebAppSvcRoleAssignmentModule 'modules/roleAssignments/roleAss
   scope: appsRg
   params: {
     appSvcName: appSvcModule.outputs.webAppSvcName
+    principalId: developerPrincipalId
+    roleDefinitionId: rolesModule.outputs.roles.Contributor
+  }
+}
+
+module contributorAdminPanelAppSvcRoleAssignmentModule 'modules/roleAssignments/roleAssignment-app.bicep' = if (!empty(developerPrincipalId)) {
+  name: take(replace(deploymentNameStructure, '{rtype}', 'role-app-adminpanel-dev'), 64)
+  scope: appsRg
+  params: {
+    appSvcName: appSvcModule.outputs.adminPanelAppsvcName
     principalId: developerPrincipalId
     roleDefinitionId: rolesModule.outputs.roles.Contributor
   }
